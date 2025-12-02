@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>HomeSearch</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Pretendard 폰트 (여기서 로드하면 index.css는 깔끔해짐) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+    />
+    <!-- Kakao Maps SDK (appkey는 나중에 .env로 빼도 됨) -->
+    <script
+      type="text/javascript"
+      src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=cf427b504e1637d02899f9373b433d5d&libraries=services,clusterer"
+    ></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
