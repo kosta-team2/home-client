@@ -19,6 +19,7 @@ const uiSlice = createSlice({
     showNotifications: false,
     mapCenter: initialCenter,
     mapLevel: 7,
+    aggregatedMarkers: [],
   },
   reducers: {
     setSearchText(state, action) {
@@ -62,6 +63,9 @@ const uiSlice = createSlice({
     setMapLevel(state, action) {
       state.mapLevel = action.payload; // number
     },
+    setAggregatedMarkers(state, action) {
+      state.aggregatedMarkers = action.payload; // 행정 구역 마커용 집계 데이터
+    },
   },
 });
 
@@ -75,6 +79,7 @@ export const {
   toggleNotifications,
   setMapCenter,
   setMapLevel,
+  setAggregatedMarkers,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;
