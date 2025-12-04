@@ -2,42 +2,93 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import axiosInstance from '../axiosInstance/AxiosInstance';
-import { setSearchText } from '../store/uiSlice';
+import { setMapCenter, setMapLevel, setSearchText } from '../store/uiSlice';
 
 import RegionGrid from './RegionGrid';
-
-// ❗프로젝트 경로에 맞게 수정
-// 예: '@/store/uiSlice' 나 '../store/uiSlice' 같은 곳에 있을 것
 
 export default function LeftSidebar() {
   const dispatch = useDispatch();
   const { searchText } = useSelector((state) => state.ui);
 
-  const [rootRegions, setRootRegions] = useState([]); // 시도 리스트 (/move)
-  const [currentRegion, setCurrentRegion] = useState(null); // 현재 단계 부모 (/move/{id} 결과)
-  const [level, setLevel] = useState(0); // 0: 시도, 1: 시군구, 2: 읍면동
+  const [rootRegions, setRootRegions] = useState([]);
+  const [currentRegion, setCurrentRegion] = useState(null);
+  const [level, setLevel] = useState(0);
 
-  const [selectedSido, setSelectedSido] = useState(null); // { id, name }
-  const [selectedSigungu, setSelectedSigungu] = useState(null); // { id, name }
-  const [selectedEmd, setSelectedEmd] = useState(null); // { id, name }
+  const [selectedSido, setSelectedSido] = useState(null);
+  const [selectedSigungu, setSelectedSigungu] = useState(null);
+  const [selectedEmd, setSelectedEmd] = useState(null);
 
   const [loading, setLoading] = useState(false);
 
-  // 공통으로 쓰는 로더: 특정 region(id)의 children 가져와서 currentRegion + level 변경
-  const loadRegion = async (id, nextLevel) => {
+  // todo 줌레벨 상수로 수정하기
+  const toKakaoLevel = (zoomStep) => {
+    switch (zoomStep) {
+      case 0: // 시도
+        return 10;
+      case 1: // 시군구
+        return 6;
+      case 2: // 읍면동
+        return 3;
+      default:
+        return 10;
+    }
+  };
+
+  const moveMapToRegion = async (id, zoomStep) => {
+    try {
+      const res = await axiosInstance.get('/api/v1/move/' + id);
+      const region = res.data;
+
+      if (region && region.latitude != null && region.longitude != null) {
+        dispatch(
+          setMapCenter({
+            lat: region.latitude,
+            lng: region.longitude,
+          }),
+        );
+        dispatch(setMapLevel(toKakaoLevel(zoomStep)));
+      } else {
+        console.warn(
+          'moveMapToRegion: region에 latitude/longitude가 없습니다.',
+          region,
+        );
+      }
+    } catch (e) {
+      console.error(`moveMapToRegion /api/v1/move/${id} 실패`, e);
+    }
+  };
+
+  const loadRegion = async (id, nextLevel, zoomStep) => {
     try {
       setLoading(true);
       const res = await axiosInstance.get('/api/v1/move/' + id);
-      setCurrentRegion(res.data); // { id, name, children: [...] }
+      const region = res.data;
+
+      setCurrentRegion(region);
       setLevel(nextLevel);
+
+      if (region && region.latitude != null && region.longitude != null) {
+        dispatch(
+          setMapCenter({
+            lat: region.latitude,
+            lng: region.longitude,
+          }),
+        );
+
+        dispatch(setMapLevel(toKakaoLevel(zoomStep)));
+      } else {
+        console.warn(
+          'loadRegion: region에 latitude/longitude가 없어 지도 이동은 생략됩니다.',
+          region,
+        );
+      }
     } catch (e) {
-      console.error(`move/${id} 실패`, e);
+      console.error(`/api/v1/move/${id} 실패`, e);
     } finally {
       setLoading(false);
     }
   };
 
-  // 1) 초기 시도 리스트 불러오기
   useEffect(() => {
     const loadRoot = async () => {
       try {
@@ -54,7 +105,6 @@ export default function LeftSidebar() {
     loadRoot();
   }, []);
 
-  // 2) 현재 단계 리스트
   const currentItems =
     level === 0 ? rootRegions : currentRegion?.children || [];
 
@@ -64,7 +114,6 @@ export default function LeftSidebar() {
       )
     : currentItems;
 
-  // RegionGrid에 넘길 선택된 id (단계에 따라 다름)
   const selectedId =
     level === 0
       ? selectedSido?.id
@@ -72,28 +121,25 @@ export default function LeftSidebar() {
         ? selectedSigungu?.id
         : selectedEmd?.id;
 
-  // 3) 리스트 아이템 클릭 (시도 / 시군구 / 읍면동)
   const handleSelect = async (item) => {
     if (level === 0) {
-      // 시도 선택
       setSelectedSido({ id: item.id, name: item.name });
       setSelectedSigungu(null);
       setSelectedEmd(null);
-      await loadRegion(item.id, 1); // 시군구 단계로
+
+      await loadRegion(item.id, 1, 0);
     } else if (level === 1) {
-      // 시군구 선택
       setSelectedSigungu({ id: item.id, name: item.name });
       setSelectedEmd(null);
-      await loadRegion(item.id, 2); // 읍면동 단계로
+
+      await loadRegion(item.id, 2, 1);
     } else {
-      // level === 2, 읍면동 선택: 더 내려가지 않고 선택만
       setSelectedEmd({ id: item.id, name: item.name });
+
+      await moveMapToRegion(item.id, 2);
     }
   };
 
-  // 4) 단계 네비게이션 클릭 핸들러들
-
-  // "시도 선택" 클릭 → 완전 초기화
   const handleClickSido = () => {
     setLevel(0);
     setCurrentRegion(null);
@@ -102,20 +148,18 @@ export default function LeftSidebar() {
     setSelectedEmd(null);
   };
 
-  // "시군구 선택" 클릭 → 선택된 시도의 시군구 리스트 다시 로딩
   const handleClickSigungu = async () => {
-    if (!selectedSido) return; // 아직 시도를 안 골랐으면 무시
+    if (!selectedSido) return;
 
-    await loadRegion(selectedSido.id, 1); // 시군구 리스트 다시 로딩
+    await loadRegion(selectedSido.id, 1, 0);
     setSelectedSigungu(null);
     setSelectedEmd(null);
   };
 
-  // "읍면동 선택" 클릭 → 선택된 시군구의 읍면동 리스트 다시 로딩
   const handleClickEmd = async () => {
-    if (!selectedSigungu) return; // 아직 시군구를 안 골랐으면 무시
+    if (!selectedSigungu) return;
 
-    await loadRegion(selectedSigungu.id, 2); // 읍면동 리스트 다시 로딩
+    await loadRegion(selectedSigungu.id, 2, 1);
     setSelectedEmd(null);
   };
 
