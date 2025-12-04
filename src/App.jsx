@@ -69,13 +69,11 @@ export default function App() {
       swLng: sw.getLng(),
       neLat: ne.getLat(),
       neLng: ne.getLng(),
+      region: regionPath,
     };
 
     try {
-      const response = await axiosInstance.post(
-        `map/get-aggregation/${regionPath}`,
-        payload,
-      );
+      const response = await axiosInstance.post(`map/get-aggregation`, payload);
 
       console.log('payload :', payload);
       console.log(response);
