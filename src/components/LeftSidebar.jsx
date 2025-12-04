@@ -1,51 +1,170 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-import {
-  SIDO_LIST,
-  GYEONGGI_SGG_LIST,
-  GYEONGGI_EMD_LIST,
-} from '../data/mockData';
-import {
-  setSearchText,
-  selectSido,
-  selectSgg,
-  selectEmd,
-} from '../store/uiSlice';
+import axiosInstance from '../axiosInstance/AxiosInstance';
+import { setMapCenter, setMapLevel, setSearchText } from '../store/uiSlice';
 
 import RegionGrid from './RegionGrid';
 
 export default function LeftSidebar() {
   const dispatch = useDispatch();
-  const { searchText, selectedSido, selectedSgg, selectedEmd } = useSelector(
-    (state) => state.ui,
-  );
+  const { searchText } = useSelector((state) => state.ui);
 
-  // 단계별 리스트 선택
-  let currentItems = SIDO_LIST;
-  let currentLevel = 'sido';
+  const [rootRegions, setRootRegions] = useState([]);
+  const [currentRegion, setCurrentRegion] = useState(null);
+  const [level, setLevel] = useState(0);
 
-  if (selectedSido) {
-    currentItems = GYEONGGI_SGG_LIST;
-    currentLevel = 'sgg';
-  }
-  if (selectedSgg) {
-    currentItems = GYEONGGI_EMD_LIST;
-    currentLevel = 'emd';
-  }
+  const [selectedSido, setSelectedSido] = useState(null);
+  const [selectedSigungu, setSelectedSigungu] = useState(null);
+  const [selectedEmd, setSelectedEmd] = useState(null);
+
+  const [loading, setLoading] = useState(false);
+
+  // todo 줌레벨 상수로 수정하기
+  const toKakaoLevel = (zoomStep) => {
+    switch (zoomStep) {
+      case 0: // 시도
+        return 10;
+      case 1: // 시군구
+        return 6;
+      case 2: // 읍면동
+        return 3;
+      default:
+        return 10;
+    }
+  };
+
+  const moveMapToRegion = async (id, zoomStep) => {
+    try {
+      const res = await axiosInstance.get('/api/v1/move/' + id);
+      const region = res.data;
+
+      if (region && region.latitude != null && region.longitude != null) {
+        dispatch(
+          setMapCenter({
+            lat: region.latitude,
+            lng: region.longitude,
+          }),
+        );
+        dispatch(setMapLevel(toKakaoLevel(zoomStep)));
+      } else {
+        console.warn(
+          'moveMapToRegion: region에 latitude/longitude가 없습니다.',
+          region,
+        );
+      }
+    } catch (e) {
+      console.error(`moveMapToRegion /api/v1/move/${id} 실패`, e);
+    }
+  };
+
+  const loadRegion = async (id, nextLevel, zoomStep) => {
+    try {
+      setLoading(true);
+      const res = await axiosInstance.get('/api/v1/move/' + id);
+      const region = res.data;
+
+      setCurrentRegion(region);
+      setLevel(nextLevel);
+
+      if (region && region.latitude != null && region.longitude != null) {
+        dispatch(
+          setMapCenter({
+            lat: region.latitude,
+            lng: region.longitude,
+          }),
+        );
+
+        dispatch(setMapLevel(toKakaoLevel(zoomStep)));
+      } else {
+        console.warn(
+          'loadRegion: region에 latitude/longitude가 없어 지도 이동은 생략됩니다.',
+          region,
+        );
+      }
+    } catch (e) {
+      console.error(`/api/v1/move/${id} 실패`, e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const loadRoot = async () => {
+      try {
+        setLoading(true);
+        const res = await axiosInstance.get('/api/v1/move');
+        setRootRegions(res.data);
+      } catch (e) {
+        console.error('/api/v1/move 조회 실패', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRoot();
+  }, []);
+
+  const currentItems =
+    level === 0 ? rootRegions : currentRegion?.children || [];
 
   const filteredItems = searchText
-    ? currentItems.filter((name) =>
-        name.toLowerCase().includes(searchText.toLowerCase()),
+    ? currentItems.filter((item) =>
+        item.name.toLowerCase().includes(searchText.toLowerCase()),
       )
     : currentItems;
 
-  const levelLabel =
-    currentLevel === 'sido'
-      ? '시도 선택'
-      : currentLevel === 'sgg'
-        ? '시군구 선택'
-        : '읍면동 선택';
+  const selectedId =
+    level === 0
+      ? selectedSido?.id
+      : level === 1
+        ? selectedSigungu?.id
+        : selectedEmd?.id;
+
+  const handleSelect = async (item) => {
+    if (level === 0) {
+      setSelectedSido({ id: item.id, name: item.name });
+      setSelectedSigungu(null);
+      setSelectedEmd(null);
+
+      await loadRegion(item.id, 1, 0);
+    } else if (level === 1) {
+      setSelectedSigungu({ id: item.id, name: item.name });
+      setSelectedEmd(null);
+
+      await loadRegion(item.id, 2, 1);
+    } else {
+      setSelectedEmd({ id: item.id, name: item.name });
+
+      await moveMapToRegion(item.id, 2);
+    }
+  };
+
+  const handleClickSido = () => {
+    setLevel(0);
+    setCurrentRegion(null);
+    setSelectedSido(null);
+    setSelectedSigungu(null);
+    setSelectedEmd(null);
+  };
+
+  const handleClickSigungu = async () => {
+    if (!selectedSido) return;
+
+    await loadRegion(selectedSido.id, 1, 0);
+    setSelectedSigungu(null);
+    setSelectedEmd(null);
+  };
+
+  const handleClickEmd = async () => {
+    if (!selectedSigungu) return;
+
+    await loadRegion(selectedSigungu.id, 2, 1);
+    setSelectedEmd(null);
+  };
+
+  const stepLabels = ['시도 선택', '시군구 선택', '읍면동 선택'];
+  const listTitle = stepLabels[level];
 
   return (
     <aside className='flex w-[430px] max-w-[450px] flex-col border-r border-slate-100 bg-white'>
@@ -79,73 +198,75 @@ export default function LeftSidebar() {
         </p>
       </div>
 
-      {/* 단계 네비게이션 */}
-      <div className='flex items-center gap-1 border-b border-slate-100 bg-sky-50/80 px-4 py-3 text-[13px]'>
+      {/* 단계 네비게이션 (서울 > 강남구 > 개포동 느낌) */}
+      <div className='flex items-center border-b border-slate-100 bg-sky-50/80 px-4 py-3 text-[13px]'>
+        {/* 시도 */}
         <button
           type='button'
-          onClick={() => {
-            dispatch(selectSgg(null));
-            dispatch(selectEmd(null));
-          }}
-          className='font-semibold text-sky-700 hover:text-sky-800'
+          onClick={handleClickSido}
+          className={
+            'text-[12px] ' +
+            (level === 0 ? 'font-semibold text-sky-700 ' : 'text-sky-600 ') +
+            'underline-offset-2 hover:underline'
+          }
         >
-          {selectedSido || '시도 선택'}
+          {selectedSido?.name || '시도 선택'}
         </button>
-        <span className='text-slate-400'>›</span>
+
+        <span className='mx-2 text-slate-400'>{'>'}</span>
+
+        {/* 시군구 */}
         <button
           type='button'
-          onClick={() => {
-            dispatch(selectEmd(null));
-          }}
+          onClick={handleClickSigungu}
+          disabled={!selectedSido}
           className={
-            currentLevel !== 'sido'
-              ? 'font-semibold text-sky-700 hover:text-sky-800'
-              : 'text-slate-500'
+            'text-[12px] ' +
+            (level === 1 ? 'font-semibold text-sky-700 ' : 'text-sky-600 ') +
+            (!selectedSido
+              ? ' cursor-default opacity-40'
+              : ' underline-offset-2 hover:underline')
           }
         >
-          {currentLevel === 'sgg' ? '시군구 선택' : '시군구'}
+          {selectedSigungu?.name || '시군구 선택'}
         </button>
-        <span className='text-slate-400'>›</span>
-        <span
+
+        <span className='mx-2 text-slate-400'>{'>'}</span>
+
+        {/* 읍면동 */}
+        <button
+          type='button'
+          onClick={handleClickEmd}
+          disabled={!selectedSigungu}
           className={
-            currentLevel === 'emd'
-              ? 'font-semibold text-sky-700'
-              : 'text-slate-500'
+            'text-[12px] ' +
+            (level === 2 ? 'font-semibold text-sky-700 ' : 'text-sky-600 ') +
+            (!selectedSigungu
+              ? ' cursor-default opacity-40'
+              : ' underline-offset-2 hover:underline')
           }
         >
-          읍면동 선택
-        </span>
+          {selectedEmd?.name || '읍면동 선택'}
+        </button>
       </div>
 
       {/* 리스트 */}
       <div className='flex-1 overflow-y-auto p-4'>
         <div className='mb-1 flex items-center justify-between'>
           <div className='text-sm font-semibold text-slate-800'>
-            {levelLabel}
+            {listTitle}
           </div>
           <div className='text-[11px] text-slate-400'>
-            {filteredItems.length.toLocaleString()}개 지역
+            {loading
+              ? '불러오는 중...'
+              : `${filteredItems.length.toLocaleString()}개 지역`}
           </div>
         </div>
 
         <RegionGrid
           items={filteredItems}
-          selected={
-            currentLevel === 'sido'
-              ? selectedSido
-              : currentLevel === 'sgg'
-                ? selectedSgg
-                : selectedEmd
-          }
-          onSelect={(value) => {
-            if (currentLevel === 'sido') {
-              dispatch(selectSido(value));
-            } else if (currentLevel === 'sgg') {
-              dispatch(selectSgg(value));
-            } else {
-              dispatch(selectEmd(value));
-            }
-          }}
+          selectedId={selectedId}
+          onSelect={handleSelect}
         />
       </div>
     </aside>
