@@ -1,19 +1,21 @@
 import { RefreshCcw } from 'lucide-react';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
+import axiosInstance from './axiosInstance/AxiosInstance';
 import FilterChip from './components/FilterChip';
 import Header from './components/Header';
 import LeftSidebar from './components/LeftSidebar';
 import KakaoMap from './components/map/KakaoMap';
 import LegendBox from './components/map/LegendBox';
-import PriceChangeMarkers from './components/map/PriceChangeMarkers';
+import RegionMarkers from './components/map/RegionMarkers';
 import { METRICS, MARKERS } from './data/mockData';
 import {
   toggleMetric,
   resetFilters,
   setMapCenter,
   setMapLevel,
+  setAggregatedMarkers,
 } from './store/uiSlice';
 
 export default function App() {
@@ -25,6 +27,7 @@ export default function App() {
     selectedEmd,
     mapCenter,
     mapLevel,
+    aggregatedMarkers,
   } = useSelector((state) => state.ui);
 
   const handleToggleMetric = (metric) => {
@@ -35,24 +38,85 @@ export default function App() {
     dispatch(resetFilters());
   };
 
-  const handleMapIdle = (map) => {
-    const center = map.getCenter();
-    const level = map.getLevel();
-    const bounds = map.getBounds();
-    const sw = bounds.getSouthWest();
-    const ne = bounds.getNorthEast();
-    console.log('level:', level);
-    console.log('SW:', sw.getLat(), sw.getLng());
-    console.log('NE:', ne.getLat(), ne.getLng());
-
-    dispatch(
-      setMapCenter({
-        lat: center.getLat(),
-        lng: center.getLng(),
-      }),
-    );
-    dispatch(setMapLevel(level));
+  const resolveRegionPath = (level) => {
+    if (level >= 10) return 'si-do';
+    if (level >= 6) return 'si-gun-gu';
+    return 'eup-myeon-dong';
   };
+
+  const requestAggregatedMarkers = useCallback(
+    async (map) => {
+      if (!map) return;
+
+      const center = map.getCenter();
+      const level = map.getLevel();
+      const bounds = map.getBounds();
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+
+      console.log('level:', level);
+
+      // 전역 상태에 지도 정보 반영
+      dispatch(
+        setMapCenter({
+          lat: center.getLat(),
+          lng: center.getLng(),
+        }),
+      );
+      dispatch(setMapLevel(level));
+
+      const regionPath = resolveRegionPath(level);
+
+      const payload = {
+        swLat: sw.getLat(),
+        swLng: sw.getLng(),
+        neLat: ne.getLat(),
+        neLng: ne.getLng(),
+        region: regionPath,
+      };
+
+      try {
+        const response = await axiosInstance.post(
+          'api/v1/map/get-aggregation',
+          payload,
+        );
+
+        console.log('payload :', payload);
+        console.log(response);
+        console.log(response.data);
+
+        const list = Array.isArray(response.data) ? response.data : [];
+
+        const parsed = list.map((item) => ({
+          id: item.id,
+          name: item.name,
+          lat: typeof item.lat === 'string' ? parseFloat(item.lat) : item.lat,
+          lng: typeof item.lng === 'string' ? parseFloat(item.lng) : item.lng,
+        }));
+
+        dispatch(setAggregatedMarkers(parsed));
+      } catch (error) {
+        console.log('@@오류!!@@');
+        console.log(error);
+        dispatch(setAggregatedMarkers([]));
+      }
+    },
+    [dispatch], // resolveRegionPath는 함수 내부에서 불러서 OK
+  );
+
+  const handleMapReady = useCallback(
+    (map) => {
+      requestAggregatedMarkers(map);
+    },
+    [requestAggregatedMarkers],
+  );
+
+  const handleMapIdle = useCallback(
+    (map) => {
+      requestAggregatedMarkers(map);
+    },
+    [requestAggregatedMarkers],
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 font-['Pretendard',system-ui,sans-serif]">
@@ -95,12 +159,14 @@ export default function App() {
                 center={mapCenter}
                 level={mapLevel}
                 onIdle={handleMapIdle}
+                onMapReady={handleMapReady}
               >
-                <PriceChangeMarkers markers={MARKERS} />
+                {/* <PriceChangeMarkers markers={MARKERS} /> */}
+                <RegionMarkers markers={aggregatedMarkers} />
               </KakaoMap>
 
               {/* 현재 보기 요약 */}
-              <div className='absolute top-4 left-4 flex flex-col gap-1 rounded-2xl border border-slate-100 bg-white/90 px-3 py-2.5 text-xs shadow-sm backdrop-blur'>
+              <div className='absolute top-4 left-4 z-50 flex flex-col gap-1 rounded-2xl border border-slate-100 bg-white/90 px-3 py-2.5 text-xs shadow-sm backdrop-blur'>
                 <div className='font-semibold text-slate-800'>현재 보기</div>
                 <div className='text-[11px] text-slate-500'>
                   {selectedSido || '시도 미선택'}
@@ -119,7 +185,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 마커 범례 (별도 컴포넌트, React.memo로 깜빡임 최소화) */}
               <LegendBox />
             </div>
           </div>
