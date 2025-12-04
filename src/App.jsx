@@ -1,5 +1,5 @@
 import { RefreshCcw } from 'lucide-react';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import axiosInstance from './axiosInstance/AxiosInstance';
@@ -44,57 +44,79 @@ export default function App() {
     return 'eup-myeon-dong';
   };
 
-  const handleMapIdle = async (map) => {
-    const center = map.getCenter();
-    const level = map.getLevel();
-    const bounds = map.getBounds();
-    const sw = bounds.getSouthWest();
-    const ne = bounds.getNorthEast();
-    console.log('level:', level);
-    // console.log('SW:', sw.getLat(), sw.getLng());
-    // console.log('NE:', ne.getLat(), ne.getLng());
+  const requestAggregatedMarkers = useCallback(
+    async (map) => {
+      if (!map) return;
 
-    dispatch(
-      setMapCenter({
-        lat: center.getLat(),
-        lng: center.getLng(),
-      }),
-    );
-    dispatch(setMapLevel(level));
+      const center = map.getCenter();
+      const level = map.getLevel();
+      const bounds = map.getBounds();
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
 
-    const regionPath = resolveRegionPath(level);
+      console.log('level:', level);
 
-    const payload = {
-      swLat: sw.getLat(),
-      swLng: sw.getLng(),
-      neLat: ne.getLat(),
-      neLng: ne.getLng(),
-      region: regionPath,
-    };
+      // 전역 상태에 지도 정보 반영
+      dispatch(
+        setMapCenter({
+          lat: center.getLat(),
+          lng: center.getLng(),
+        }),
+      );
+      dispatch(setMapLevel(level));
 
-    try {
-      const response = await axiosInstance.post(`map/get-aggregation`, payload);
+      const regionPath = resolveRegionPath(level);
 
-      console.log('payload :', payload);
-      console.log(response);
-      console.log(response.data);
+      const payload = {
+        swLat: sw.getLat(),
+        swLng: sw.getLng(),
+        neLat: ne.getLat(),
+        neLng: ne.getLng(),
+        region: regionPath,
+      };
 
-      const list = Array.isArray(response.data) ? response.data : [];
+      try {
+        const response = await axiosInstance.post(
+          'api/v1/map/get-aggregation',
+          payload,
+        );
 
-      const parsed = list.map((item) => ({
-        id: item.id,
-        name: item.name,
-        lat: typeof item.lat === 'string' ? parseFloat(item.lat) : item.lat,
-        lng: typeof item.lng === 'string' ? parseFloat(item.lng) : item.lng,
-      }));
+        console.log('payload :', payload);
+        console.log(response);
+        console.log(response.data);
 
-      dispatch(setAggregatedMarkers(parsed));
-    } catch (error) {
-      console.log('@@오류!!@@');
-      console.log(error);
-      dispatch(setAggregatedMarkers([]));
-    }
-  };
+        const list = Array.isArray(response.data) ? response.data : [];
+
+        const parsed = list.map((item) => ({
+          id: item.id,
+          name: item.name,
+          lat: typeof item.lat === 'string' ? parseFloat(item.lat) : item.lat,
+          lng: typeof item.lng === 'string' ? parseFloat(item.lng) : item.lng,
+        }));
+
+        dispatch(setAggregatedMarkers(parsed));
+      } catch (error) {
+        console.log('@@오류!!@@');
+        console.log(error);
+        dispatch(setAggregatedMarkers([]));
+      }
+    },
+    [dispatch], // resolveRegionPath는 함수 내부에서 불러서 OK
+  );
+
+  const handleMapReady = useCallback(
+    (map) => {
+      requestAggregatedMarkers(map);
+    },
+    [requestAggregatedMarkers],
+  );
+
+  const handleMapIdle = useCallback(
+    (map) => {
+      requestAggregatedMarkers(map);
+    },
+    [requestAggregatedMarkers],
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 font-['Pretendard',system-ui,sans-serif]">
@@ -137,6 +159,7 @@ export default function App() {
                 center={mapCenter}
                 level={mapLevel}
                 onIdle={handleMapIdle}
+                onMapReady={handleMapReady}
               >
                 {/* <PriceChangeMarkers markers={MARKERS} /> */}
                 <RegionMarkers markers={aggregatedMarkers} />
