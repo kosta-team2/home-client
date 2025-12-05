@@ -75,7 +75,7 @@ export default function App() {
 
       try {
         const response = await axiosInstance.post(
-          '/map/get-aggregation',
+          'api/v1/map/get-aggregation',
           payload,
         );
 
