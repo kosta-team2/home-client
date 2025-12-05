@@ -6,16 +6,18 @@ import axiosInstance from './axiosInstance/AxiosInstance';
 import FilterChip from './components/FilterChip';
 import Header from './components/Header';
 import LeftSidebar from './components/LeftSidebar';
+import ComplexMarkers from './components/map/ComplexMarkers';
 import KakaoMap from './components/map/KakaoMap';
 import LegendBox from './components/map/LegendBox';
 import RegionMarkers from './components/map/RegionMarkers';
-import { METRICS, MARKERS } from './data/mockData';
+import { METRICS } from './data/mockData';
 import {
   toggleMetric,
   resetFilters,
   setMapCenter,
   setMapLevel,
-  setAggregatedMarkers,
+  setRegionMarkers,
+  setComplexMarkers,
 } from './store/uiSlice';
 
 export default function App() {
@@ -27,7 +29,8 @@ export default function App() {
     selectedEmd,
     mapCenter,
     mapLevel,
-    aggregatedMarkers,
+    regionMarkers,
+    complexMarkers,
   } = useSelector((state) => state.ui);
 
   const handleToggleMetric = (metric) => {
@@ -38,10 +41,16 @@ export default function App() {
     dispatch(resetFilters());
   };
 
-  const resolveRegionPath = (level) => {
+  const resolveEndpoint = (level) => {
+    if (level <= 4) return 'api/v1/map/complexes';
+    return 'api/v1/map/regions';
+  };
+
+  const resolveRegionKeyForApi = (level) => {
     if (level >= 10) return 'si-do';
-    if (level >= 6) return 'si-gun-gu';
-    return 'eup-myeon-dong';
+    if (level >= 7) return 'si-gun-gu';
+    if (level >= 4) return 'eup-myeon-dong';
+    return 'complex';
   };
 
   const requestAggregatedMarkers = useCallback(
@@ -56,7 +65,6 @@ export default function App() {
 
       console.log('level:', level);
 
-      // 전역 상태에 지도 정보 반영
       dispatch(
         setMapCenter({
           lat: center.getLat(),
@@ -65,21 +73,20 @@ export default function App() {
       );
       dispatch(setMapLevel(level));
 
-      const regionPath = resolveRegionPath(level);
+      const regionKey = resolveRegionKeyForApi(level);
+      const url = resolveEndpoint(level);
+      const isComplexLevel = level <= 4;
 
       const payload = {
         swLat: sw.getLat(),
         swLng: sw.getLng(),
         neLat: ne.getLat(),
         neLng: ne.getLng(),
-        region: regionPath,
+        region: regionKey,
       };
 
       try {
-        const response = await axiosInstance.post(
-          'api/v1/map/get-aggregation',
-          payload,
-        );
+        const response = await axiosInstance.post(url, payload);
 
         console.log('payload :', payload);
         console.log(response);
@@ -88,20 +95,27 @@ export default function App() {
         const list = Array.isArray(response.data) ? response.data : [];
 
         const parsed = list.map((item) => ({
-          id: item.id,
-          name: item.name,
+          ...item,
           lat: typeof item.lat === 'string' ? parseFloat(item.lat) : item.lat,
           lng: typeof item.lng === 'string' ? parseFloat(item.lng) : item.lng,
         }));
 
-        dispatch(setAggregatedMarkers(parsed));
+        if (isComplexLevel) {
+          dispatch(setComplexMarkers(parsed));
+          dispatch(setRegionMarkers([]));
+        } else {
+          dispatch(setRegionMarkers(parsed));
+          dispatch(setComplexMarkers([]));
+        }
       } catch (error) {
         console.log('@@오류!!@@');
         console.log(error);
-        dispatch(setAggregatedMarkers([]));
+        // 에러 시 둘 다 비워서 화면 깔끔하게
+        dispatch(setRegionMarkers([]));
+        dispatch(setComplexMarkers([]));
       }
     },
-    [dispatch], // resolveRegionPath는 함수 내부에서 불러서 OK
+    [dispatch],
   );
 
   const handleMapReady = useCallback(
@@ -117,6 +131,8 @@ export default function App() {
     },
     [requestAggregatedMarkers],
   );
+
+  const isComplexLevel = mapLevel <= 4;
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 font-['Pretendard',system-ui,sans-serif]">
@@ -161,8 +177,11 @@ export default function App() {
                 onIdle={handleMapIdle}
                 onMapReady={handleMapReady}
               >
-                {/* <PriceChangeMarkers markers={MARKERS} /> */}
-                <RegionMarkers markers={aggregatedMarkers} />
+                {isComplexLevel ? (
+                  <ComplexMarkers markers={complexMarkers} />
+                ) : (
+                  <RegionMarkers markers={regionMarkers} />
+                )}
               </KakaoMap>
 
               {/* 현재 보기 요약 */}
