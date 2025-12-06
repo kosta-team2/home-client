@@ -1,4 +1,3 @@
-// src/store/uiSlice.js
 import { createSlice } from '@reduxjs/toolkit';
 
 import { METRICS } from '../data/mockData';
@@ -18,8 +17,10 @@ const uiSlice = createSlice({
     selectedEmd: null,
     showNotifications: false,
     mapCenter: initialCenter,
-    mapLevel: 7,
-    aggregatedMarkers: [],
+    mapLevel: 10,
+
+    regionMarkers: [], // 시/도, 시/군/구, 읍/면/동 집계용
+    complexMarkers: [], // 단지 상세용
   },
   reducers: {
     setSearchText(state, action) {
@@ -63,8 +64,13 @@ const uiSlice = createSlice({
     setMapLevel(state, action) {
       state.mapLevel = action.payload; // number
     },
-    setAggregatedMarkers(state, action) {
-      state.aggregatedMarkers = action.payload; // 행정 구역 마커용 집계 데이터
+
+    setRegionMarkers(state, action) {
+      state.regionMarkers = action.payload;
+    },
+
+    setComplexMarkers(state, action) {
+      state.complexMarkers = action.payload;
     },
   },
 });
@@ -79,7 +85,8 @@ export const {
   toggleNotifications,
   setMapCenter,
   setMapLevel,
-  setAggregatedMarkers,
+  setRegionMarkers,
+  setComplexMarkers,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

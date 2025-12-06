@@ -1,4 +1,3 @@
-// src/components/map/LegendBox.jsx
 import React from 'react';
 
 function LegendBox() {
