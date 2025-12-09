@@ -1,7 +1,25 @@
 import React from 'react';
 import { CustomOverlayMap } from 'react-kakao-maps-sdk';
+import { useDispatch, useSelector } from 'react-redux';
 
-export default function PriceChangeMarkers({ markers }) {
+import { setMapCenter, setMapLevel } from '../../store/uiSlice';
+
+export default function RegionMarkers({ markers }) {
+  const dispatch = useDispatch();
+  const mapLevel = useSelector((state) => state.ui.mapLevel);
+
+  const handleMarkerClick = (marker) => {
+    const newLevel = Math.max(1, mapLevel - 2);
+
+    dispatch(
+      setMapCenter({
+        lat: marker.lat,
+        lng: marker.lng,
+      }),
+    );
+    dispatch(setMapLevel(newLevel));
+  };
+
   return (
     <>
       {markers.map((m) => {
@@ -22,11 +40,12 @@ export default function PriceChangeMarkers({ markers }) {
             yAnchor={1}
           >
             <div
-              className='relative'
+              className='relative transform cursor-pointer transition-transform duration-150 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98]'
               style={{ transform: 'translate(-50%, -100%)' }}
+              onClick={() => handleMarkerClick(m)}
             >
               <div
-                className='w-[120px] overflow-hidden rounded-[6px] border bg-white text-[11px] shadow-[0_4px_10px_rgba(15,23,42,0.22)]'
+                className='w-[120px] overflow-hidden rounded-[6px] border bg-white text-[11px] shadow-[0_4px_10px_rgba(15,23,42,0.22)] hover:shadow-[0_6px_14px_rgba(15,23,42,0.30)]'
                 style={{ borderColor: bgColor }}
               >
                 <div className='overflow-hidden px-2 py-1 text-center font-semibold tracking-[-0.01em] text-ellipsis whitespace-nowrap text-slate-900'>

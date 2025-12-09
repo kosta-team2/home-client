@@ -3,7 +3,7 @@ import { Map } from 'react-kakao-maps-sdk';
 
 export default function KakaoMap({
   center,
-  level = 7,
+  level = 10,
   onIdle,
   onMapReady,
   children,
