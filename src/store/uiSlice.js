@@ -20,6 +20,9 @@ const uiSlice = createSlice({
     mapCenter: initialCenter,
     mapLevel: 7,
     aggregatedMarkers: [],
+    sidebarMode: 'region-nav',
+    previousSidebarMode: null,
+    selectedComplexId: null,
   },
   reducers: {
     setSearchText(state, action) {
@@ -41,6 +44,8 @@ const uiSlice = createSlice({
       state.selectedSgg = null;
       state.selectedEmd = null;
       state.searchText = '';
+      state.sidebarMode = 'region-nav';
+      state.previousSidebarMode = null;
     },
     selectSido(state, action) {
       state.selectedSido = action.payload;
@@ -66,6 +71,25 @@ const uiSlice = createSlice({
     setAggregatedMarkers(state, action) {
       state.aggregatedMarkers = action.payload; // 행정 구역 마커용 집계 데이터
     },
+    setSidebarMode(state, action) {
+      state.sidebarMode = action.payload;
+    },
+    setSelectedComplexId(state, action) {
+      state.selectedComplexId = action.payload;
+    },
+    openDetailFrom(state, action) {
+      // 마커나, 검색으로 상세페이지로 이동 시
+      state.previousSidebarMode = action.payload; // 'region-nav' | 'search-list'
+      state.sidebarMode = 'detail';
+    },
+    goBackFromDetail(state) {
+      if (state.previousSidebarMode) {
+        state.sidebarMode = state.previousSidebarMode;
+        state.previousSidebarMode = null;
+      } else {
+        state.sidebarMode = 'region-nav';
+      }
+    },
   },
 });
 
@@ -80,6 +104,10 @@ export const {
   setMapCenter,
   setMapLevel,
   setAggregatedMarkers,
+  setSidebarMode,
+  setSelectedComplexId,
+  openDetailFrom,
+  goBackFromDetail,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

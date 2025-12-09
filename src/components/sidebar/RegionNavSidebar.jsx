@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-import axiosInstance from '../axiosInstance/AxiosInstance';
-import { setMapCenter, setMapLevel, setSearchText } from '../store/uiSlice';
+import axiosInstance from '../../axiosInstance/AxiosInstance';
+import { setMapCenter, setMapLevel } from '../../store/uiSlice';
 
 import RegionGrid from './RegionGrid';
 
-export default function LeftSidebar() {
+export default function RegionNavSidebar() {
   const dispatch = useDispatch();
   const { searchText } = useSelector((state) => state.ui);
 
@@ -23,12 +23,12 @@ export default function LeftSidebar() {
   // todo 줌레벨 상수로 수정하기
   const toKakaoLevel = (zoomStep) => {
     switch (zoomStep) {
-      case 0: // 시도
-        return 10;
-      case 1: // 시군구
-        return 6;
-      case 2: // 읍면동
-        return 3;
+      case 0:
+        return 10; // 시도
+      case 1:
+        return 5; // 시군구
+      case 2:
+        return 2; // 읍면동
       default:
         return 10;
     }
@@ -74,7 +74,6 @@ export default function LeftSidebar() {
             lng: region.longitude,
           }),
         );
-
         dispatch(setMapLevel(toKakaoLevel(zoomStep)));
       } else {
         console.warn(
@@ -167,38 +166,8 @@ export default function LeftSidebar() {
   const listTitle = stepLabels[level];
 
   return (
-    <aside className='flex w-[430px] max-w-[450px] flex-col border-r border-slate-100 bg-white'>
-      {/* 검색 바 */}
-      <div className='border-b border-slate-100 p-4'>
-        <div className='flex items-center gap-2 rounded-2xl border border-sky-400 bg-white/80 px-3 py-2 shadow-sm'>
-          <svg
-            xmlns='http://www.w3.org/2000/svg'
-            className='h-4 w-4 text-slate-400'
-            fill='none'
-            viewBox='0 0 24 24'
-            stroke='currentColor'
-            strokeWidth='1.6'
-          >
-            <path
-              strokeLinecap='round'
-              strokeLinejoin='round'
-              d='M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z'
-            />
-          </svg>
-          <input
-            value={searchText}
-            onChange={(e) => dispatch(setSearchText(e.target.value))}
-            placeholder='아파트명을 검색해보세요.'
-            className='flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400'
-          />
-        </div>
-        <p className='mt-2 text-[11px] text-slate-400'>
-          * 기본은 지역 선택, 검색 시 단지명/동 이름으로 빠르게 이동할 수
-          있어요.
-        </p>
-      </div>
-
-      {/* 단계 네비게이션 (서울 > 강남구 > 개포동 느낌) */}
+    <>
+      {/* 단계 네비게이션 */}
       <div className='flex items-center border-b border-slate-100 bg-sky-50/80 px-4 py-3 text-[13px]'>
         {/* 시도 */}
         <button
@@ -269,6 +238,6 @@ export default function LeftSidebar() {
           onSelect={handleSelect}
         />
       </div>
-    </aside>
+    </>
   );
 }
