@@ -75,7 +75,8 @@ export default function LeftSidebar() {
       )}
 
       <div className='flex-1 overflow-y-auto'>
-        {sidebarMode === 'region-nav' && <RegionNavSidebar />}
+        <RegionNavSidebar active={sidebarMode === 'region-nav'} />
+
         {sidebarMode === 'detail' && selectedComplexId && (
           <DetailSidebar
             complexId={selectedComplexId}
