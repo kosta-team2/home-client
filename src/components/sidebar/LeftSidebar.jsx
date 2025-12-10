@@ -74,13 +74,15 @@ export default function LeftSidebar() {
         </div>
       )}
 
-      {sidebarMode === 'region-nav' && <RegionNavSidebar />}
-      {sidebarMode === 'detail' && (
-        <DetailSidebar
-          complexId={selectedComplexId} // 마커/리스트 클릭 시 저장해둔 id
-          onBack={() => dispatch(goBackFromDetail())}
-        />
-      )}
+      <div className='flex-1 overflow-y-auto'>
+        {sidebarMode === 'region-nav' && <RegionNavSidebar />}
+        {sidebarMode === 'detail' && selectedComplexId && (
+          <DetailSidebar
+            complexId={selectedComplexId}
+            onBack={() => dispatch(goBackFromDetail())}
+          />
+        )}
+      </div>
     </aside>
   );
 }

@@ -6,7 +6,7 @@ import { setMapCenter, setMapLevel } from '../../store/uiSlice';
 
 import RegionGrid from './RegionGrid';
 
-export default function RegionNavSidebar() {
+export default function RegionNavSidebar({ active = true }) {
   const dispatch = useDispatch();
   const { searchText } = useSelector((state) => state.ui);
 
@@ -20,15 +20,14 @@ export default function RegionNavSidebar() {
 
   const [loading, setLoading] = useState(false);
 
-  // todo 줌레벨 상수로 수정하기
   const toKakaoLevel = (zoomStep) => {
     switch (zoomStep) {
       case 0:
-        return 10; // 시도
+        return 9; // 시도
       case 1:
-        return 5; // 시군구
+        return 6; // 시군구
       case 2:
-        return 2; // 읍면동
+        return 4; // 읍면동
       default:
         return 10;
     }
@@ -134,7 +133,6 @@ export default function RegionNavSidebar() {
       await loadRegion(item.id, 2, 1);
     } else {
       setSelectedEmd({ id: item.id, name: item.name });
-
       await moveMapToRegion(item.id, 2);
     }
   };
@@ -149,7 +147,6 @@ export default function RegionNavSidebar() {
 
   const handleClickSigungu = async () => {
     if (!selectedSido) return;
-
     await loadRegion(selectedSido.id, 1, 0);
     setSelectedSigungu(null);
     setSelectedEmd(null);
@@ -157,7 +154,6 @@ export default function RegionNavSidebar() {
 
   const handleClickEmd = async () => {
     if (!selectedSigungu) return;
-
     await loadRegion(selectedSigungu.id, 2, 1);
     setSelectedEmd(null);
   };
@@ -166,10 +162,10 @@ export default function RegionNavSidebar() {
   const listTitle = stepLabels[level];
 
   return (
-    <>
+    // active가 false면 hidden으로만 숨김 (언마운트 X)
+    <div className={'flex flex-1 flex-col ' + (active ? '' : 'hidden')}>
       {/* 단계 네비게이션 */}
       <div className='flex items-center border-b border-slate-100 bg-sky-50/80 px-4 py-3 text-[13px]'>
-        {/* 시도 */}
         <button
           type='button'
           onClick={handleClickSido}
@@ -184,7 +180,6 @@ export default function RegionNavSidebar() {
 
         <span className='mx-2 text-slate-400'>{'>'}</span>
 
-        {/* 시군구 */}
         <button
           type='button'
           onClick={handleClickSigungu}
@@ -202,7 +197,6 @@ export default function RegionNavSidebar() {
 
         <span className='mx-2 text-slate-400'>{'>'}</span>
 
-        {/* 읍면동 */}
         <button
           type='button'
           onClick={handleClickEmd}
@@ -238,6 +232,6 @@ export default function RegionNavSidebar() {
           onSelect={handleSelect}
         />
       </div>
-    </>
+    </div>
   );
 }
