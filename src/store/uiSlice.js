@@ -18,7 +18,10 @@ const uiSlice = createSlice({
     showNotifications: false,
     mapCenter: initialCenter,
     mapLevel: 10,
-
+    aggregatedMarkers: [],
+    sidebarMode: 'region-nav',
+    previousSidebarMode: null,
+    selectedComplexId: null,
     regionMarkers: [], // 시/도, 시/군/구, 읍/면/동 집계용
     complexMarkers: [], // 단지 상세용
   },
@@ -42,6 +45,8 @@ const uiSlice = createSlice({
       state.selectedSgg = null;
       state.selectedEmd = null;
       state.searchText = '';
+      state.sidebarMode = 'region-nav';
+      state.previousSidebarMode = null;
     },
     selectSido(state, action) {
       state.selectedSido = action.payload;
@@ -72,6 +77,25 @@ const uiSlice = createSlice({
     setComplexMarkers(state, action) {
       state.complexMarkers = action.payload;
     },
+    setSidebarMode(state, action) {
+      state.sidebarMode = action.payload;
+    },
+    setSelectedComplexId(state, action) {
+      state.selectedComplexId = action.payload;
+    },
+    openDetailFrom(state, action) {
+      // 마커나, 검색으로 상세페이지로 이동 시
+      state.previousSidebarMode = action.payload; // 'region-nav' | 'search-list'
+      state.sidebarMode = 'detail';
+    },
+    goBackFromDetail(state) {
+      if (state.previousSidebarMode) {
+        state.sidebarMode = state.previousSidebarMode;
+        state.previousSidebarMode = null;
+      } else {
+        state.sidebarMode = 'region-nav';
+      }
+    },
   },
 });
 
@@ -85,6 +109,11 @@ export const {
   toggleNotifications,
   setMapCenter,
   setMapLevel,
+  setAggregatedMarkers,
+  setSidebarMode,
+  setSelectedComplexId,
+  openDetailFrom,
+  goBackFromDetail,
   setRegionMarkers,
   setComplexMarkers,
 } = uiSlice.actions;

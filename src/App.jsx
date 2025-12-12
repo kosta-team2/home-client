@@ -5,11 +5,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import axiosInstance from './axiosInstance/AxiosInstance';
 import FilterChip from './components/FilterChip';
 import Header from './components/Header';
-import LeftSidebar from './components/LeftSidebar';
 import ComplexMarkers from './components/map/ComplexMarkers';
 import KakaoMap from './components/map/KakaoMap';
 import LegendBox from './components/map/LegendBox';
 import RegionMarkers from './components/map/RegionMarkers';
+import LeftSidebar from './components/sidebar/LeftSidebar';
 import { METRICS } from './data/mockData';
 import {
   toggleMetric,
@@ -135,7 +135,7 @@ export default function App() {
   const isComplexLevel = mapLevel <= 4;
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 font-['Pretendard',system-ui,sans-serif]">
+    <div className="flex h-screen flex-col overflow-hidden bg-slate-50 font-['Pretendard',system-ui,sans-serif]">
       <Header />
 
       <main className='flex flex-1 overflow-hidden'>

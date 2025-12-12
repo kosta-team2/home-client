@@ -2,25 +2,18 @@ import React, { useState } from 'react';
 import { CustomOverlayMap } from 'react-kakao-maps-sdk';
 import { useDispatch, useSelector } from 'react-redux';
 
-import { setMapCenter, setMapLevel } from '../../store/uiSlice';
+import { setSelectedComplexId, openDetailFrom } from '../../store/uiSlice';
 
 export default function ComplexMarkers({ markers }) {
   const [hoveredId, setHoveredId] = useState(null);
   const dispatch = useDispatch();
-  const mapLevel = useSelector((state) => state.ui.mapLevel);
+  const sidebarMode = useSelector((state) => state.ui.sidebarMode);
 
   if (!markers || markers.length === 0) return null;
 
   const handleMarkerClick = (marker) => {
-    const newLevel = Math.max(1, mapLevel - 1);
-
-    dispatch(
-      setMapCenter({
-        lat: marker.lat,
-        lng: marker.lng,
-      }),
-    );
-    dispatch(setMapLevel(newLevel));
+    dispatch(setSelectedComplexId(marker.id));
+    dispatch(openDetailFrom(sidebarMode));
   };
 
   return (
