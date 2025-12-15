@@ -1,7 +1,7 @@
+import axiosInstance from '@axios/AxiosInstance';
 import { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-import axiosInstance from '../../axiosInstance/AxiosInstance';
 import {
   goBackFromDetail,
   setSearchText,
@@ -12,7 +12,7 @@ import {
 } from '../../store/uiSlice';
 
 import DetailSidebar from './DetailSidebar';
-import RegionNavSidebar from './RegionNavSidebar';
+import RegionNavSidebar from './region/RegionNavSidebar';
 import SearchListSidebar from './SearchListSidebar';
 
 export default function LeftSidebar() {

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-import axiosInstance from '../../axiosInstance/AxiosInstance';
-import { setMapCenter, setMapLevel } from '../../store/uiSlice';
+import axiosInstance from '../../../axiosInstance/AxiosInstance';
+import { setMapCenter, setMapLevel } from '../../../store/uiSlice';
 
 import RegionGrid from './RegionGrid';
 
