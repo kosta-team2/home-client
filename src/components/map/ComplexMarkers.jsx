@@ -1,10 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { CustomOverlayMap } from 'react-kakao-maps-sdk';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { setSelectedComplexId, openDetailFrom } from '../../store/uiSlice';
 
-export default function ComplexMarkers({ markers }) {
+function formatToEok(amount) {
+  if (amount == null) return '-';
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return '-';
+
+  const eok = n / 100000000;
+
+  const rounded = Math.round(eok * 10) / 10;
+
+  const text = Number.isInteger(rounded)
+    ? String(rounded.toFixed(0))
+    : String(rounded.toFixed(1));
+  return `${text}억`;
+}
+
+function ComplexMarkers({ markers }) {
   const [hoveredId, setHoveredId] = useState(null);
   const dispatch = useDispatch();
   const sidebarMode = useSelector((state) => state.ui.sidebarMode);
@@ -12,55 +27,64 @@ export default function ComplexMarkers({ markers }) {
   if (!markers || markers.length === 0) return null;
 
   const handleMarkerClick = (marker) => {
-    dispatch(setSelectedComplexId(marker.id));
+    // 이제 marker.id == parcelId 라고 보면 됨
+    dispatch(setSelectedComplexId(marker.parcelId));
     dispatch(openDetailFrom(sidebarMode));
   };
 
   return (
     <>
       {markers.map((m) => {
-        const archArea = m.archArea ?? m.arch_area;
-        const unitCnt = m.unitCnt ?? m.unit_cnt;
-        const buildYear = m.buildYear ?? m.build_year;
-        const tradeName = m.tradeName ?? m.trade_name;
-        const address = m.address ?? '';
-        const areaPyeong = archArea ? Math.round(archArea / 3.3) : null;
+        // === 좌표 ===
+        const lat = Number(m.lat ?? m.latitude ?? m.latitute);
+        const lng = Number(m.lng ?? m.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
-        const topLabel = areaPyeong ? `${areaPyeong}평` : tradeName || '아파트';
-        const bottomLabel = unitCnt
-          ? `${unitCnt.toLocaleString()}세대`
-          : '세대수 정보 없음';
+        const latestDealAmount =
+          m.latestDealAmount ??
+          m.latest_deal_amount ??
+          m.latestDeal ??
+          m.latest_deal;
+        const unitCntSum =
+          m.unitCntSum ?? m.unit_cnt_sum ?? m.unitCnt ?? m.unit_cnt;
 
-        const isHovered = hoveredId === m.id;
+        const priceLabel = formatToEok(latestDealAmount);
+        const unitLabel =
+          unitCntSum != null && Number.isFinite(Number(unitCntSum))
+            ? `${Number(unitCntSum).toLocaleString()}세대`
+            : '-세대';
 
+        const isHovered = hoveredId === (m.id ?? m.parcelId ?? m.parcel_id);
         const houseColor = '#60a5fa';
 
         return (
           <CustomOverlayMap
-            key={m.id}
-            position={{ lat: m.lat, lng: m.lng }}
-            yAnchor={1}
+            key={m.id ?? m.parcelId ?? m.parcel_id}
+            position={{ lat, lng }}
+            xAnchor={0.5}
+            yAnchor={1.15}
           >
             <div
               className='relative'
-              style={{ transform: 'translate(-50%, -100%)' }}
-              onMouseEnter={() => setHoveredId(m.id)}
+              onMouseEnter={() =>
+                setHoveredId(m.id ?? m.parcelId ?? m.parcel_id)
+              }
               onMouseLeave={() => setHoveredId(null)}
               onClick={() => handleMarkerClick(m)}
             >
-              {/* 집 모양 전체 (clip-path로 지붕+몸통 일체형) */}
               <div
                 className={`flex cursor-pointer flex-col items-center transition-transform duration-150 ${
-                  isHovered
-                    ? '-translate-y-0.5 scale-[1.03]'
-                    : 'translate-y-0 scale-100'
+                  isHovered ? '-translate-y-0.5 scale-[1.03]' : ''
                 }`}
+                style={{ transformOrigin: '50% 100%' }}
               >
                 <div
-                  className='flex flex-col items-center justify-center px-3 py-1.5 text-center text-white'
+                  className='flex flex-col items-center justify-center px-3 text-center text-white'
                   style={{
-                    width: 68,
-                    minHeight: 40,
+                    width: 84,
+                    minHeight: 54,
+                    paddingTop: 10,
+                    paddingBottom: 8,
                     backgroundColor: houseColor,
                     clipPath:
                       'polygon(50% 0, 100% 30%, 100% 100%, 0 100%, 0 30%)',
@@ -69,15 +93,14 @@ export default function ComplexMarkers({ markers }) {
                       : '0 4px 10px rgba(15,23,42,0.25)',
                   }}
                 >
-                  <div className='text-[10px] font-semibold whitespace-nowrap'>
-                    {topLabel}
+                  <div className='text-[13px] leading-none font-extrabold whitespace-nowrap'>
+                    {priceLabel}
                   </div>
-                  <div className='text-[12px] font-bold whitespace-nowrap'>
-                    {bottomLabel}
+                  <div className='mt-1 text-[12px] leading-none font-semibold whitespace-nowrap'>
+                    {unitLabel}
                   </div>
                 </div>
 
-                {/* 아래 꼬리 */}
                 <div
                   className='-mt-[2px] h-3 w-3 rotate-45'
                   style={{
@@ -86,40 +109,6 @@ export default function ComplexMarkers({ markers }) {
                   }}
                 />
               </div>
-
-              {/* hover info 카드 */}
-              {isHovered && (
-                <div
-                  className='absolute z-[60] ml-2 w-[260px] rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs shadow-[0_6px_18px_rgba(15,23,42,0.32)]'
-                  style={{
-                    left: '110%',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                  }}
-                >
-                  <div className='mb-1 flex items-start justify-between gap-2'>
-                    <div className='flex-1'>
-                      <div className='mb-0.5 text-[12px] font-semibold text-slate-900'>
-                        {m.name}
-                      </div>
-                      <div className='text-[11px] text-slate-500'>
-                        {address}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className='mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500'>
-                    {unitCnt && <span>{unitCnt.toLocaleString()}세대</span>}
-                    {buildYear && <span>준공 {buildYear}년</span>}
-                    {areaPyeong && (
-                      <span>
-                        전용 {areaPyeong}평(≈{archArea}
-                        ㎡)
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </CustomOverlayMap>
         );
@@ -127,3 +116,5 @@ export default function ComplexMarkers({ markers }) {
     </>
   );
 }
+
+export default memo(ComplexMarkers);
