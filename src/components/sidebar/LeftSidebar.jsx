@@ -17,7 +17,7 @@ import SearchListSidebar from './SearchListSidebar';
 
 export default function LeftSidebar() {
   const dispatch = useDispatch();
-  const { searchText, sidebarMode, selectedComplexId } = useSelector(
+  const { searchText, sidebarMode, selectedParcelId } = useSelector(
     (s) => s.ui,
   );
 
@@ -108,9 +108,9 @@ export default function LeftSidebar() {
         <RegionNavSidebar active={sidebarMode === 'region-nav'} />
         {sidebarMode === 'search-list' && <SearchListSidebar />}
 
-        {sidebarMode === 'detail' && selectedComplexId && (
+        {sidebarMode === 'detail' && selectedParcelId && (
           <DetailSidebar
-            complexId={selectedComplexId}
+            parcelId={selectedParcelId}
             onBack={() => dispatch(goBackFromDetail())}
           />
         )}

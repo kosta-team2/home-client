@@ -2,7 +2,7 @@ import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import {
-  setSelectedComplexId,
+  setSelectedParcelId,
   openDetailFrom,
   setMapCenter,
   setMapLevel,
@@ -16,7 +16,7 @@ export default function SearchListSidebar() {
   const handleClick = (item) => {
     if (!item?.parcelId) return;
 
-    dispatch(setSelectedComplexId(item.parcelId));
+    dispatch(setSelectedParcelId(item.parcelId));
     dispatch(openDetailFrom(sidebarMode));
 
     // 지도 이동 (레벨 4)

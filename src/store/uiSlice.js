@@ -21,7 +21,7 @@ const uiSlice = createSlice({
     mapLevel: 10,
     aggregatedMarkers: [],
     previousSidebarMode: null,
-    selectedComplexId: null,
+    selectedParcelId: null,
     regionMarkers: [], // 시/도, 시/군/구, 읍/면/동 집계용
     complexMarkers: [], // 단지 상세용
     searchResults: [],
@@ -83,8 +83,8 @@ const uiSlice = createSlice({
     setSidebarMode(state, action) {
       state.sidebarMode = action.payload;
     },
-    setSelectedComplexId(state, action) {
-      state.selectedComplexId = action.payload;
+    setSelectedParcelId(state, action) {
+      state.selectedParcelId = action.payload;
     },
     openDetailFrom(state, action) {
       // 마커나, 검색으로 상세페이지로 이동 시
@@ -123,7 +123,7 @@ export const {
   setMapLevel,
   setAggregatedMarkers,
   setSidebarMode,
-  setSelectedComplexId,
+  setSelectedParcelId,
   openDetailFrom,
   goBackFromDetail,
   setRegionMarkers,
