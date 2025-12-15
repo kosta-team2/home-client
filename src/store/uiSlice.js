@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+import axiosInstance from '../axiosInstance/AxiosInstance';
 import { METRICS } from '../data/mockData';
 
 const initialCenter = {
@@ -19,11 +20,13 @@ const uiSlice = createSlice({
     mapCenter: initialCenter,
     mapLevel: 10,
     aggregatedMarkers: [],
-    sidebarMode: 'region-nav',
     previousSidebarMode: null,
     selectedComplexId: null,
     regionMarkers: [], // 시/도, 시/군/구, 읍/면/동 집계용
     complexMarkers: [], // 단지 상세용
+    searchResults: [],
+    searchLoading: false,
+    searchError: null,
   },
   reducers: {
     setSearchText(state, action) {
@@ -96,6 +99,15 @@ const uiSlice = createSlice({
         state.sidebarMode = 'region-nav';
       }
     },
+    setSearchResults: (state, action) => {
+      state.searchResults = action.payload;
+    },
+    setSearchLoading: (state, action) => {
+      state.searchLoading = action.payload;
+    },
+    setSearchError: (state, action) => {
+      state.searchError = action.payload;
+    },
   },
 });
 
@@ -116,6 +128,27 @@ export const {
   goBackFromDetail,
   setRegionMarkers,
   setComplexMarkers,
+  setSearchResults,
+  setSearchLoading,
+  setSearchError,
 } = uiSlice.actions;
+
+export const fetchSearchResults = (q) => async (dispatch) => {
+  try {
+    dispatch(setSearchLoading(true));
+    dispatch(setSearchError(null));
+    const res = await axiosInstance.get(
+      `/api/v1/search/complexes?q=${encodeURIComponent(q)}`,
+    );
+    dispatch(setSearchResults(Array.isArray(res.data) ? res.data : []));
+    console.log(res);
+  } catch (e) {
+    console.log(e);
+    dispatch(setSearchError('검색 실패'));
+    dispatch(setSearchResults([]));
+  } finally {
+    dispatch(setSearchLoading(false));
+  }
+};
 
 export default uiSlice.reducer;
