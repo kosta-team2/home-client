@@ -2,7 +2,7 @@ import React, { useState, memo } from 'react';
 import { CustomOverlayMap } from 'react-kakao-maps-sdk';
 import { useDispatch, useSelector } from 'react-redux';
 
-import { setSelectedComplexId, openDetailFrom } from '../../store/uiSlice';
+import { setSelectedParcelId, openDetailFrom } from '../../store/uiSlice';
 
 function formatToEok(amount) {
   if (amount == null) return '-';
@@ -28,7 +28,7 @@ function ComplexMarkers({ markers }) {
 
   const handleMarkerClick = (marker) => {
     // 이제 marker.id == parcelId 라고 보면 됨
-    dispatch(setSelectedComplexId(marker.parcelId));
+    dispatch(setSelectedParcelId(marker.parcelId));
     dispatch(openDetailFrom(sidebarMode));
   };
 

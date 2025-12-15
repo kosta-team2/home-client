@@ -35,7 +35,7 @@ export default function RegionNavSidebar({ active = true }) {
 
   const moveMapToRegion = async (id, zoomStep) => {
     try {
-      const res = await axiosInstance.get('/api/v1/move/' + id);
+      const res = await axiosInstance.get('/api/v1/region/' + id);
       const region = res.data;
 
       if (region && region.latitude != null && region.longitude != null) {
@@ -53,14 +53,14 @@ export default function RegionNavSidebar({ active = true }) {
         );
       }
     } catch (e) {
-      console.error(`moveMapToRegion /api/v1/move/${id} 실패`, e);
+      console.error(`moveMapToRegion /api/v1/region/${id} 실패`, e);
     }
   };
 
   const loadRegion = async (id, nextLevel, zoomStep) => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get('/api/v1/move/' + id);
+      const res = await axiosInstance.get('/api/v1/region/' + id);
       const region = res.data;
 
       setCurrentRegion(region);
@@ -81,7 +81,7 @@ export default function RegionNavSidebar({ active = true }) {
         );
       }
     } catch (e) {
-      console.error(`/api/v1/move/${id} 실패`, e);
+      console.error(`/api/v1/region/${id} 실패`, e);
     } finally {
       setLoading(false);
     }
@@ -91,10 +91,10 @@ export default function RegionNavSidebar({ active = true }) {
     const loadRoot = async () => {
       try {
         setLoading(true);
-        const res = await axiosInstance.get('/api/v1/move');
+        const res = await axiosInstance.get('/api/v1/region');
         setRootRegions(res.data);
       } catch (e) {
-        console.error('/api/v1/move 조회 실패', e);
+        console.error('/api/v1/region 조회 실패', e);
       } finally {
         setLoading(false);
       }

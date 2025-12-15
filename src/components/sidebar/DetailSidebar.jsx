@@ -11,7 +11,7 @@ import {
 
 import axiosInstance from '../../axiosInstance/AxiosInstance';
 
-export default function DetailSidebar({ complexId, onBack }) {
+export default function DetailSidebar({ parcelId, onBack }) {
   // /detail 데이터
   const [detail, setDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -35,20 +35,20 @@ export default function DetailSidebar({ complexId, onBack }) {
 
   // ✅ 단지 기본 정보 조회 (/api/v1/detail/{id})
   useEffect(() => {
-    if (!complexId) return;
+    if (!parcelId) return;
 
     const fetchDetail = async () => {
       try {
         setLoadingDetail(true);
         setDetailError(null);
 
-        const res = await axiosInstance.get(`/api/v1/detail/${complexId}`);
+        const res = await axiosInstance.get(`/api/v1/detail/${parcelId}`);
         // DetailResponse:
         // { id, address, tradeName, name, latitude, longitude, dongCnt, unitCnt,
         //   platArea, archArea, totArea, bcRat, vlRat, buildYear }
         setDetail(res.data);
       } catch (e) {
-        console.error(`/api/v1/detail/${complexId} 실패`, e);
+        console.error(`/api/v1/detail/${parcelId} 실패`, e);
         setDetailError('단지 정보를 불러오는데 실패했습니다.');
         setDetail(null);
       } finally {
@@ -57,11 +57,11 @@ export default function DetailSidebar({ complexId, onBack }) {
     };
 
     fetchDetail();
-  }, [complexId]);
+  }, [parcelId]);
 
   // ✅ 실거래 / 차트 조회 (/api/v1/trade/{id})
   useEffect(() => {
-    if (!complexId) return;
+    if (!parcelId) return;
 
     const fetchTrades = async () => {
       try {
@@ -69,7 +69,7 @@ export default function DetailSidebar({ complexId, onBack }) {
         setTradeError(null);
 
         // 여기서는 전체 기간 데이터를 한 번에 가져온다고 가정
-        const res = await axiosInstance.get(`/api/v1/trade/${complexId}`);
+        const res = await axiosInstance.get(`/api/v1/trade/${parcelId}`);
 
         const data = res.data || {};
 
@@ -102,7 +102,7 @@ export default function DetailSidebar({ complexId, onBack }) {
         const tradesList = Array.isArray(data.trades) ? data.trades : [];
         setTrades(tradesList);
       } catch (e) {
-        console.error(`/api/v1/trade/${complexId} 실패`, e);
+        console.error(`/api/v1/trade/${parcelId} 실패`, e);
 
         setTradeError('실거래 정보를 가져오지 못했습니다.');
         setTradeSummary(null);
@@ -114,7 +114,7 @@ export default function DetailSidebar({ complexId, onBack }) {
     };
 
     fetchTrades();
-  }, [complexId]);
+  }, [parcelId]);
 
   // 슬라이더 값에 따라 최근 N개만 자른 차트 데이터
   const visibleChartData = useMemo(() => {
@@ -141,11 +141,11 @@ export default function DetailSidebar({ complexId, onBack }) {
   return (
     <div className='flex h-full flex-col bg-white'>
       {/* 헤더 */}
-      <header className='flex items-center justify-between bg-[#5D3FFF] px-4 py-3 text-white'>
+      <header className='flex items-center justify-between bg-[#d6f3ff] px-4 py-3 text-black'>
         <button
           type='button'
           onClick={handleBack}
-          className='flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white shadow-sm backdrop-blur transition-all duration-150 hover:-translate-y-0.5 hover:bg-white/30 hover:shadow-md active:translate-y-0'
+          className='flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-black shadow-sm backdrop-blur transition-all duration-150 hover:-translate-y-0.5 hover:bg-white/30 hover:shadow-md active:translate-y-0'
         >
           ←
         </button>
@@ -169,7 +169,7 @@ export default function DetailSidebar({ complexId, onBack }) {
           <div className='text-[11px] text-slate-400'>
             최근 실거래 기준 평균 가격
           </div>
-          <div className='mt-1 text-xl font-semibold text-[#5D3FFF]'>
+          <div className='mt-1 text-xl font-semibold text-[#3fc9ff]'>
             {formattedAvgPrice}
           </div>
 
@@ -209,7 +209,7 @@ export default function DetailSidebar({ complexId, onBack }) {
                 step={1}
                 value={Math.min(chartRange, tradeChartAll.length || 1)}
                 onChange={handleChangeChartRange}
-                className='w-full accent-[#5D3FFF]'
+                className='w-full accent-[#3fe9ff]'
               />
             </div>
           )}
@@ -413,7 +413,7 @@ function TradePriceChart({ data }) {
         <Line
           type='monotone'
           dataKey='avgPrice'
-          stroke='#5D3FFF'
+          stroke='#3fe9ff'
           strokeWidth={2}
           dot={false}
         />
