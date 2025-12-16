@@ -11,7 +11,7 @@ import {
   setSearchError,
 } from '../../store/uiSlice';
 
-import DetailSidebar from './DetailSidebar';
+import DetailSidebar from './detail/DetailSidebar';
 import RegionNavSidebar from './region/RegionNavSidebar';
 import SearchListSidebar from './SearchListSidebar';
 

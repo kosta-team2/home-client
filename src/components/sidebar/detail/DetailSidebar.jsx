@@ -1,7 +1,7 @@
 import axiosInstance from '@axios/AxiosInstance';
 import { useEffect, useMemo, useState } from 'react';
 
-import TradeSidebar from './trade/TradeSidebar'; // 새로운 trade 파일 import
+import TradeSidebar from './TradeSidebar'; // 새로운 trade 파일 import
 
 export default function DetailSidebar({ parcelId, onBack }) {
   // /detail 데이터
