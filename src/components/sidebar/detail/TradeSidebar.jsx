@@ -9,14 +9,42 @@ import {
   Tooltip,
 } from 'recharts';
 
+// 최근 실거래 기준 1개월 평균을 계산하는 함수 (전체 데이터 기준으로 수정)
+const getMonthlyAverage = (trades) => {
+  // 현재 날짜
+  const today = new Date();
+  // 1개월 전 날짜 계산
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(today.getMonth() - 1);
+
+  // 최근 1개월 간의 거래 목록
+  const recentTrades = trades.filter((trade) => {
+    const tradeDate = new Date(trade.dealDate);
+    return tradeDate >= oneMonthAgo && tradeDate <= today;
+  });
+
+  // 1개월 동안의 평균 가격 계산
+  if (recentTrades.length > 0) {
+    const totalAmount = recentTrades.reduce(
+      (acc, trade) => acc + trade.dealAmount,
+      0,
+    );
+    return totalAmount / recentTrades.length; // 평균 가격
+  }
+
+  return null; // 최근 1개월 거래가 없으면 null 반환
+};
+
 export default function TradeSidebar({ parcelId }) {
-  const [tradeSummary, setTradeSummary] = useState(null);
   const [tradeChartAll, setTradeChartAll] = useState([]); // 전체 차트 포인트
   const [trades, setTrades] = useState([]); // 거래 목록
   const [loadingTrades, setLoadingTrades] = useState(false);
   const [tradeError, setTradeError] = useState(null);
   const [startDate, setStartDate] = useState(null); // 시작일
   const [endDate, setEndDate] = useState(null); // 종료일
+  const [selectedExclArea, setSelectedExclArea] = useState(null); // 선택된 면적
+  const [availableExclAreas, setAvailableExclAreas] = useState([]); // 가능 면적 목록
+  const [showExclAreaList, setShowExclAreaList] = useState(false); // 면적 리스트 토글
 
   // 실거래 조회
   useEffect(() => {
@@ -27,48 +55,38 @@ export default function TradeSidebar({ parcelId }) {
         setLoadingTrades(true);
         setTradeError(null);
 
-        const res = await axiosInstance.get(`/api/v1/trade/${parcelId}`);
+        const res = await axiosInstance.get(`/api/v1/detail/trade/${parcelId}`);
         const data = res.data || {};
-
-        // 상단 요약
-        setTradeSummary(
-          data.avgPrice || data.minPrice || data.maxPrice
-            ? {
-                avgPrice: data.avgPrice,
-                minPrice: data.minPrice,
-                maxPrice: data.maxPrice,
-                tradeCount: data.tradeCount,
-              }
-            : null,
-        );
 
         // 거래 리스트 (최신 거래 순으로 정렬)
         const tradesList = Array.isArray(data.trades) ? data.trades : [];
         tradesList.sort((a, b) => new Date(b.dealDate) - new Date(a.dealDate));
-
         setTrades(tradesList);
 
         // 시계열 차트 데이터 생성 (X: dealDate, Y: dealAmount)
-        const chartPoints = tradesList.map((trade) => ({
-          date: new Date(trade.dealDate), // 날짜 형식으로 변환
-          avgPrice: trade.dealAmount, // 가격
-        }));
-
+        const chartPoints = processChartData(tradesList);
         setTradeChartAll(chartPoints);
 
-        // 기본값 설정: startDate는 가장 오래된 거래일, endDate는 오늘 날짜
+        // 기본값 설정: 시작일, 종료일
         const firstTradeDate = new Date(
           tradesList[tradesList.length - 1]?.dealDate,
         );
         const today = new Date();
-
         setStartDate(formatDate(firstTradeDate)); // 첫 거래일을 startDate로 설정
         setEndDate(formatDate(today)); // 오늘 날짜를 endDate로 설정
+
+        // 면적 목록 설정
+        const distinctExclAreas = [
+          ...new Set(tradesList.map((trade) => trade.exclArea)),
+        ];
+        setAvailableExclAreas(distinctExclAreas);
+
+        // 최초 selectedExclArea 설정 (최근 거래의 면적)
+        setSelectedExclArea(tradesList[0]?.exclArea);
       } catch (e) {
         console.error(`/api/v1/trade/${parcelId} 실패`, e);
 
         setTradeError('실거래 정보를 가져오지 못했습니다.');
-        setTradeSummary(null);
         setTradeChartAll([]);
         setTrades([]);
       } finally {
@@ -78,6 +96,34 @@ export default function TradeSidebar({ parcelId }) {
 
     fetchTrades();
   }, [parcelId]);
+
+  // 날짜별로 데이터를 월 단위로 묶고 평균값을 계산하는 함수
+  const processChartData = (tradesList) => {
+    const groupedData = {};
+
+    tradesList.forEach((trade) => {
+      const date = new Date(trade.dealDate);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (!groupedData[monthKey]) {
+        groupedData[monthKey] = {
+          month: monthKey,
+          totalPrice: 0,
+          count: 0,
+        };
+      }
+
+      groupedData[monthKey].totalPrice += trade.dealAmount;
+      groupedData[monthKey].count += 1;
+    });
+
+    const aggregatedData = Object.keys(groupedData).map((key) => ({
+      date: new Date(key),
+      avgPrice: groupedData[key].totalPrice / groupedData[key].count, // 평균 가격 계산
+    }));
+
+    return aggregatedData;
+  };
 
   // 날짜 필터링 함수 (전체 기간 / 최근 3년)
   const handleDateRangeChange = (range) => {
@@ -100,35 +146,6 @@ export default function TradeSidebar({ parcelId }) {
     setEndDate(formatDate(newEndDate));
   };
 
-  // 최근 1개월간 거래의 평균 가격 계산
-  const formattedAvgPrice = useMemo(() => {
-    if (!trades || trades.length === 0) return '-';
-
-    // 현재 날짜
-    const today = new Date();
-
-    // 1개월 전 날짜 계산
-    const oneMonthAgo = new Date(today);
-    oneMonthAgo.setMonth(today.getMonth() - 1);
-
-    // 최근 1개월 거래 필터링
-    const recentTrades = trades.filter((trade) => {
-      const dealDate = new Date(trade.dealDate);
-      return dealDate >= oneMonthAgo; // 1개월 이내 거래만 포함
-    });
-
-    // 최근 1개월 거래의 평균 가격 계산
-    if (recentTrades.length === 0) return '-';
-
-    const totalAmount = recentTrades.reduce(
-      (sum, trade) => sum + trade.dealAmount,
-      0,
-    );
-    const avgPrice = totalAmount / recentTrades.length;
-
-    return formatPrice(avgPrice);
-  }, [trades]);
-
   // 시계열 데이터 준비 (기간 필터링)
   const filteredChartData = useMemo(() => {
     if (!tradeChartAll || tradeChartAll.length === 0) return [];
@@ -142,10 +159,27 @@ export default function TradeSidebar({ parcelId }) {
     if (!trades || trades.length === 0) return [];
     return trades.filter(
       (trade) =>
+        trade.exclArea === selectedExclArea &&
         new Date(trade.dealDate) >= new Date(startDate) &&
         new Date(trade.dealDate) <= new Date(endDate),
     );
-  }, [trades, startDate, endDate]);
+  }, [trades, selectedExclArea, startDate, endDate]);
+
+  // 선택된 면적 업데이트
+  const handleExclAreaSelect = (area) => {
+    setSelectedExclArea(area);
+    setShowExclAreaList(false); // 리스트 닫기
+  };
+
+  // 면적 선택 리스트 토글
+  const handleExclAreaClick = () => {
+    setShowExclAreaList((prev) => !prev);
+  };
+
+  const monthlyAvgPrice = useMemo(() => {
+    if (!trades || trades.length === 0 || !selectedExclArea) return null;
+    return getMonthlyAverage(trades, selectedExclArea);
+  }, [trades, selectedExclArea]);
 
   return (
     <div className='flex-1'>
@@ -155,10 +189,11 @@ export default function TradeSidebar({ parcelId }) {
           최근 실거래 기준 1개월 평균
         </div>
         <div className='mt-1 text-xl font-semibold text-[#3fc9ff]'>
-          {formattedAvgPrice}
+          {monthlyAvgPrice ? formatPrice(monthlyAvgPrice) : '-'}
+          {''}
+          {/* 1개월 평균값 출력 */}
         </div>
       </section>
-
       {/* 차트 */}
       <div className='mt-3 h-40 rounded-lg border border-slate-100 bg-slate-50/50 px-2 py-2'>
         {loadingTrades ? (
@@ -178,14 +213,23 @@ export default function TradeSidebar({ parcelId }) {
         )}
       </div>
 
-      {/* 기간 설정 버튼 */}
-      <div className='mt-4 flex justify-end gap-4'>
+      {/* // 면적 선택 버튼 */}
+      <div className='mt-3 flex justify-between gap-4'>
+        <button
+          onClick={handleExclAreaClick} // 클릭 시 토글 함수 실행
+          className='rounded bg-blue-500 px-4 py-2 text-white'
+        >
+          {selectedExclArea ? `${selectedExclArea}평` : '평수 선택'}
+        </button>
+
+        {/* 다른 버튼들 */}
         <button
           onClick={() => handleDateRangeChange('all')}
           className='rounded bg-blue-500 px-4 py-2 text-white'
         >
           전체 기간
         </button>
+
         <button
           onClick={() => handleDateRangeChange('last3years')}
           className='rounded bg-blue-500 px-4 py-2 text-white'
@@ -193,16 +237,21 @@ export default function TradeSidebar({ parcelId }) {
           최근 3년
         </button>
       </div>
-
-      {/* 실거래 요약 텍스트 */}
-      <div className='mt-3 flex items-center justify-between text-[11px] text-slate-500'>
-        <span>국토교통부 기준</span>
-        {tradeSummary?.tradeCount != null && (
-          <span>실거래 {tradeSummary.tradeCount}건</span>
-        )}
-      </div>
-
-      {/* 거래 목록: 일자 / 가격 / 동·층 */}
+      {/* 면적 리스트가 토글되어 나타나도록 */}
+      {showExclAreaList && (
+        <ul className='mt-2 space-y-2'>
+          {availableExclAreas.map((area) => (
+            <li
+              key={area}
+              onClick={() => handleExclAreaSelect(area)} // 면적 선택 시
+              className='cursor-pointer text-blue-500'
+            >
+              {area}평
+            </li>
+          ))}
+        </ul>
+      )}
+      {/* 거래 목록 */}
       <section className='border-b border-slate-100 px-4 pt-2 pb-4'>
         <table className='w-full border-collapse text-[12px]'>
           <thead>
@@ -227,7 +276,6 @@ export default function TradeSidebar({ parcelId }) {
                 </td>
               </tr>
             ))}
-
             {!loadingTrades && tradeError && (
               <tr>
                 <td
@@ -239,7 +287,6 @@ export default function TradeSidebar({ parcelId }) {
                 </td>
               </tr>
             )}
-
             {!loadingTrades && !tradeError && trades.length === 0 && (
               <tr>
                 <td
@@ -302,7 +349,12 @@ function TradePriceChart({ data }) {
         <XAxis
           dataKey='date' // dealDate를 X축으로 사용
           tick={{ fontSize: 10 }}
-          tickFormatter={(date) => new Date(date).toLocaleDateString()} // 날짜 형식화
+          tickFormatter={(date) => {
+            const d = new Date(date);
+            const yy = String(d.getFullYear()).slice(2); // 연도의 마지막 두 자리를 가져옴
+            const mm = String(d.getMonth() + 1).padStart(2, '0'); // 월은 0부터 시작하므로 +1
+            return `${yy}-${mm}`; // 'yy-mm' 형식으로 반환
+          }}
           tickMargin={4}
         />
         <YAxis
@@ -312,7 +364,12 @@ function TradePriceChart({ data }) {
         />
         <Tooltip
           formatter={(value) => formatPrice(value)}
-          labelFormatter={(label) => new Date(label).toLocaleDateString()} // 날짜 형식화
+          labelFormatter={(label) => {
+            const d = new Date(label);
+            const yy = String(d.getFullYear()).slice(2); // 연도의 마지막 두 자리를 가져옴
+            const mm = String(d.getMonth() + 1).padStart(2, '0'); // 월은 0부터 시작하므로 +1
+            return `${yy}-${mm}`; // 'yy-mm' 형식으로 반환
+          }} // 툴팁에서 날짜를 'yy-mm' 형식으로 표시
         />
         <Line
           type='monotone'
