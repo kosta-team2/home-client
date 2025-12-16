@@ -1,7 +1,13 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 import axiosInstance from '../axiosInstance/AxiosInstance';
-import { METRICS } from '../data/mockData';
+
+export const FILTER_DEFAULTS = {
+  priceEok: [0, 80],
+  pyeong: [0, 120],
+  age: [0, 40],
+  unit: [0, 5000],
+};
 
 const initialCenter = {
   lat: 37.5662952,
@@ -12,7 +18,6 @@ const uiSlice = createSlice({
   name: 'ui',
   initialState: {
     searchText: '',
-    selectedMetrics: METRICS,
     selectedSido: '경기도',
     selectedSgg: null,
     selectedEmd: null,
@@ -27,6 +32,7 @@ const uiSlice = createSlice({
     searchResults: [],
     searchLoading: false,
     searchError: null,
+    filters: FILTER_DEFAULTS,
   },
   reducers: {
     setSearchText(state, action) {
@@ -43,13 +49,13 @@ const uiSlice = createSlice({
       }
     },
     resetFilters(state) {
-      state.selectedMetrics = METRICS;
       state.selectedSido = '경기도';
       state.selectedSgg = null;
       state.selectedEmd = null;
       state.searchText = '';
       state.sidebarMode = 'region-nav';
       state.previousSidebarMode = null;
+      state.filters = FILTER_DEFAULTS;
     },
     selectSido(state, action) {
       state.selectedSido = action.payload;
@@ -108,6 +114,10 @@ const uiSlice = createSlice({
     setSearchError: (state, action) => {
       state.searchError = action.payload;
     },
+    setFilterRange(state, action) {
+      const { key, value } = action.payload; // value: [min,max]
+      state.filters[key] = value;
+    },
   },
 });
 
@@ -131,6 +141,7 @@ export const {
   setSearchResults,
   setSearchLoading,
   setSearchError,
+  setFilterRange,
 } = uiSlice.actions;
 
 export const fetchSearchResults = (q) => async (dispatch) => {
