@@ -167,7 +167,6 @@ export default function TradeSidebar({ parcelId }) {
           {monthlyAvgPrice ? formatPrice(monthlyAvgPrice) : '-'}
         </div>
       </section>
-
       <div className='mt-3 h-40 rounded-lg border border-slate-100 bg-slate-50/50 px-2 py-2'>
         {loadingTrades ? (
           <div className='flex h-full items-center justify-center text-[12px] text-slate-400'>
@@ -185,7 +184,6 @@ export default function TradeSidebar({ parcelId }) {
           <TradePriceChart data={filteredChartData} />
         )}
       </div>
-
       <div className='mt-3 flex justify-between gap-4'>
         <button
           onClick={handleExclAreaClick}
@@ -206,7 +204,6 @@ export default function TradeSidebar({ parcelId }) {
           최근 3년
         </button>
       </div>
-
       {showExclAreaList && (
         <ul className='mt-2 space-y-2'>
           {availableExclAreas.map((area) => (
@@ -220,14 +217,14 @@ export default function TradeSidebar({ parcelId }) {
           ))}
         </ul>
       )}
-
       <section className='border-b border-slate-100 px-4 pt-2 pb-4'>
         <table className='w-full border-collapse text-[12px]'>
           <thead>
             <tr className='border-b border-slate-200 text-left text-[11px] text-slate-400'>
-              <th className='py-1'>일자</th>
-              <th className='py-1 text-right'>가격</th>
-              <th className='py-1 text-right'>동 / 층</th>
+              <th className='py-1 text-center text-[14px]'>일자</th>
+              <th className='py-1 text-center text-[14px]'>가격</th>
+              <th className='py-1 text-center text-[14px]'>면적</th>
+              <th className='py-1 text-center text-[14px]'>동 / 층</th>
             </tr>
           </thead>
           <tbody>
@@ -236,11 +233,16 @@ export default function TradeSidebar({ parcelId }) {
                 key={trade.dealDate}
                 className='border-b border-slate-100 text-slate-700'
               >
-                <td className='py-1'>{formatDate(trade.dealDate)}</td>
-                <td className='py-1 text-right font-semibold'>
+                <td className='py-1 text-center text-[14px]'>
+                  {formatDate(trade.dealDate)}
+                </td>
+                <td className='py-1 text-right text-[14px] font-semibold'>
                   {formatPrice(trade.dealAmount)}
                 </td>
-                <td className='py-1 text-right'>
+                <td className='py-1 text-right text-[14px] font-semibold'>
+                  {trade.exclArea}평
+                </td>
+                <td className='py-1 text-right text-[14px]'>
                   {formatDongFloor(trade.aptDong, trade.floor)}
                 </td>
               </tr>
@@ -248,7 +250,7 @@ export default function TradeSidebar({ parcelId }) {
             {!loadingTrades && tradeError && (
               <tr>
                 <td
-                  colSpan={3}
+                  colSpan={4}
                   className='py-3 text-center text-[12px] text-slate-400'
                 >
                   실거래 데이터를 가져오지 못했습니다. 잠시 후 다시
@@ -259,7 +261,7 @@ export default function TradeSidebar({ parcelId }) {
             {!loadingTrades && !tradeError && trades.length === 0 && (
               <tr>
                 <td
-                  colSpan={3}
+                  colSpan={4}
                   className='py-3 text-center text-[12px] text-slate-400'
                 >
                   실거래 내역이 없습니다.
@@ -268,7 +270,7 @@ export default function TradeSidebar({ parcelId }) {
             )}
           </tbody>
         </table>
-      </section>
+      </section>{' '}
     </div>
   );
 }
