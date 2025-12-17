@@ -10,7 +10,6 @@ function formatToEok(amount) {
   if (!Number.isFinite(n)) return '-';
 
   const eok = n / 100000000;
-
   const rounded = Math.round(eok * 10) / 10;
 
   const text = Number.isInteger(rounded)
@@ -27,7 +26,6 @@ function ComplexMarkers({ markers }) {
   if (!markers || markers.length === 0) return null;
 
   const handleMarkerClick = (marker) => {
-    // 이제 marker.id == parcelId 라고 보면 됨
     dispatch(setSelectedParcelId(marker.parcelId));
     dispatch(openDetailFrom(sidebarMode));
   };
@@ -35,7 +33,8 @@ function ComplexMarkers({ markers }) {
   return (
     <>
       {markers.map((m) => {
-        // === 좌표 ===
+        const key = m.id ?? m.parcelId ?? m.parcel_id;
+
         const lat = Number(m.lat ?? m.latitude ?? m.latitute);
         const lng = Number(m.lng ?? m.longitude);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -45,6 +44,7 @@ function ComplexMarkers({ markers }) {
           m.latest_deal_amount ??
           m.latestDeal ??
           m.latest_deal;
+
         const unitCntSum =
           m.unitCntSum ?? m.unit_cnt_sum ?? m.unitCnt ?? m.unit_cnt;
 
@@ -54,21 +54,23 @@ function ComplexMarkers({ markers }) {
             ? `${Number(unitCntSum).toLocaleString()}세대`
             : '-세대';
 
-        const isHovered = hoveredId === (m.id ?? m.parcelId ?? m.parcel_id);
+        const isHovered = hoveredId === key;
         const houseColor = '#60a5fa';
+
+        const zIndex = isHovered ? 9999 : 1;
 
         return (
           <CustomOverlayMap
-            key={m.id ?? m.parcelId ?? m.parcel_id}
+            key={key}
             position={{ lat, lng }}
             xAnchor={0.5}
             yAnchor={1.15}
+            zIndex={zIndex}
           >
             <div
               className='relative'
-              onMouseEnter={() =>
-                setHoveredId(m.id ?? m.parcelId ?? m.parcel_id)
-              }
+              style={{ zIndex }}
+              onMouseEnter={() => setHoveredId(key)}
               onMouseLeave={() => setHoveredId(null)}
               onClick={() => handleMarkerClick(m)}
             >
