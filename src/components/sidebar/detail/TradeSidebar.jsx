@@ -227,25 +227,6 @@ export default function TradeSidebar({ parcelId }) {
         </div>
       </section>
 
-      {/* 차트 */}
-      <div className='mt-3 h-40 rounded-lg border border-slate-100 bg-slate-50/50 px-2 py-2'>
-        {loadingTrades ? (
-          <div className='flex h-full items-center justify-center text-[12px] text-slate-400'>
-            차트 불러오는 중...
-          </div>
-        ) : tradeError ? (
-          <div className='flex h-full items-center justify-center text-[12px] text-slate-400'>
-            실거래 데이터를 가져오지 못했습니다.
-          </div>
-        ) : filteredChartData.length === 0 ? (
-          <div className='flex h-full items-center justify-center text-[12px] text-slate-400'>
-            차트 데이터가 없습니다.
-          </div>
-        ) : (
-          <TradePriceChart data={filteredChartData} />
-        )}
-      </div>
-
       {/* ✅ 사진처럼: 왼쪽 탭 + 오른쪽 드롭다운 */}
       <div className='mt-3 flex items-center justify-between px-1'>
         {/* 왼쪽: 기간 탭 */}
@@ -328,6 +309,25 @@ export default function TradeSidebar({ parcelId }) {
             </ul>
           )}
         </div>
+      </div>
+
+      {/* 차트 */}
+      <div className='mt-3 h-40 rounded-lg border border-slate-100 bg-slate-50/50 px-2 py-2'>
+        {loadingTrades ? (
+          <div className='flex h-full items-center justify-center text-[12px] text-slate-400'>
+            차트 불러오는 중...
+          </div>
+        ) : tradeError ? (
+          <div className='flex h-full items-center justify-center text-[12px] text-slate-400'>
+            실거래 데이터를 가져오지 못했습니다.
+          </div>
+        ) : filteredChartData.length === 0 ? (
+          <div className='flex h-full items-center justify-center text-[12px] text-slate-400'>
+            차트 데이터가 없습니다.
+          </div>
+        ) : (
+          <TradePriceChart data={filteredChartData} />
+        )}
       </div>
 
       {/* 거래 목록 */}
