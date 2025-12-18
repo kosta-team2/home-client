@@ -78,7 +78,7 @@ export default function Header() {
 
           {/* 알림 드롭다운 */}
           {showNotifications && (
-            <div className='absolute top-8 right-0 z-20 w-80 rounded-2xl border border-slate-100 bg-white p-3 shadow-xl'>
+            <div className='absolute top-8 right-0 z-900 w-80 rounded-2xl border border-slate-100 bg-white p-3 shadow-xl'>
               <div className='mb-2 flex items-center justify-between'>
                 <div className='text-sm font-semibold'>알림</div>
                 <button
