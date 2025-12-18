@@ -60,7 +60,7 @@ export default function DetailSidebar({ parcelId, onBack }) {
             {formattedAddress || '주소 정보 없음'}
           </div>
           <div className='mt-0.5 max-w-[220px] truncate text-sm font-semibold'>
-            {detail?.tradeName || detail?.name || '단지명'}
+            {detail?.tradeName}
           </div>
         </div>
 
@@ -153,6 +153,8 @@ export default function DetailSidebar({ parcelId, onBack }) {
 // 나머지 코드 (DetailRow, formatPrice 등)
 
 function DetailRow({ label, value }) {
+  if (value == null || value === 'null') return null;
+
   return (
     <div className='flex text-[12px]'>
       <dt className='w-20 shrink-0 text-slate-400'>{label}</dt>
