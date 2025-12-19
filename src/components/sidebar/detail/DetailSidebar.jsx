@@ -1,21 +1,47 @@
 import axiosInstance from '@axios/AxiosInstance';
 import { useEffect, useMemo, useState } from 'react';
 
-import TradeSidebar from './TradeSidebar'; // 새로운 trade 파일 import
+import TradeSidebar from './TradeSidebar';
+
+// ✅ m² -> 평 변환 (1평 = 3.305785 m²)
+function m2ToPyeong(m2) {
+  const n = Number(m2);
+  if (!Number.isFinite(n)) return null;
+  return n / 3.305785;
+}
+
+// ✅ "123.4㎡ (37.3평)" 형태로 출력
+function formatAreaWithPyeong(m2, options = {}) {
+  const { showM2 = true, digits = 1 } = options;
+
+  const m2Num = Number(m2);
+  if (!Number.isFinite(m2Num)) return '-';
+
+  const py = m2ToPyeong(m2Num);
+  const pyRounded = py == null ? null : Math.round(py * 10) / 10;
+
+  const pyText =
+    pyRounded == null
+      ? '-'
+      : Number.isInteger(pyRounded)
+        ? pyRounded.toFixed(0)
+        : pyRounded.toFixed(digits);
+
+  const m2Text = showM2 ? `${m2Num.toLocaleString()}㎡` : '';
+  const pyPart = `(${pyText}평)`;
+
+  return showM2 ? `${m2Text} ${pyPart}` : `${pyText}평`;
+}
 
 export default function DetailSidebar({ parcelId, onBack }) {
-  // /detail 데이터
   const [detail, setDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState(null);
 
   const handleBack = () => {
-    if (onBack) {
-      onBack();
-    }
+    if (onBack) onBack();
   };
 
-  // 단지 기본 정보 조회
   useEffect(() => {
     if (!parcelId) return;
 
@@ -71,7 +97,6 @@ export default function DetailSidebar({ parcelId, onBack }) {
       <div className='flex-1 overflow-y-auto'>
         {/* 실거래 요약 / 차트 */}
         <section className='border-b border-slate-100 px-4 pt-3 pb-4'>
-          {/* 여기서 TradeSidebar를 사용합니다. */}
           <TradeSidebar parcelId={parcelId} />
         </section>
 
@@ -112,11 +137,13 @@ export default function DetailSidebar({ parcelId, onBack }) {
                 label='동수'
                 value={detail.dongCnt ? `${detail.dongCnt}개동` : '-'}
               />
+
+              {/* ✅ 여기부터 면적은 평수로 같이 표시 */}
               <DetailRow
                 label='대지면적'
                 value={
                   detail.platArea
-                    ? `${detail.platArea.toLocaleString()}㎡`
+                    ? formatAreaWithPyeong(detail.platArea, { showM2: true })
                     : '-'
                 }
               />
@@ -124,16 +151,19 @@ export default function DetailSidebar({ parcelId, onBack }) {
                 label='건축면적'
                 value={
                   detail.archArea
-                    ? `${detail.archArea.toLocaleString()}㎡`
+                    ? formatAreaWithPyeong(detail.archArea, { showM2: true })
                     : '-'
                 }
               />
               <DetailRow
                 label='연면적'
                 value={
-                  detail.totArea ? `${detail.totArea.toLocaleString()}㎡` : '-'
+                  detail.totArea
+                    ? formatAreaWithPyeong(detail.totArea, { showM2: true })
+                    : '-'
                 }
               />
+
               <DetailRow
                 label='건폐율'
                 value={detail.bcRat ? `${detail.bcRat}%` : '-'}
@@ -149,8 +179,6 @@ export default function DetailSidebar({ parcelId, onBack }) {
     </div>
   );
 }
-
-// 나머지 코드 (DetailRow, formatPrice 등)
 
 function DetailRow({ label, value }) {
   if (value == null || value === 'null') return null;
