@@ -357,7 +357,7 @@ export default function TradeSidebar({ parcelId }) {
                   {formatPrice(toWonFromMan(trade.dealAmount))}
                 </td>
                 <td className='py-1 text-right text-[14px] font-semibold'>
-                  {trade.exclArea}㎡
+                  {trade.exclArea}
                 </td>
                 <td className='py-1 text-right text-[14px]'>
                   {formatDongFloor(trade.aptDong, trade.floor)}
