@@ -20,6 +20,24 @@ function toWonFromMan(value) {
   return n * 10_000;
 }
 
+// ✅ m² -> 평 변환 (1평 = 3.305785 m²)
+function m2ToPyeong(m2) {
+  const n = Number(m2);
+  if (!Number.isFinite(n)) return null;
+  return n / 3.305785;
+}
+
+// ✅ 평 표시 포맷 (기본: 소수 1자리, 정수면 0자리)
+function formatPyeongFromM2(m2) {
+  const py = m2ToPyeong(m2);
+  if (py == null) return '-';
+  const rounded = Math.round(py * 10) / 10; // 0.1평 단위
+  const text = Number.isInteger(rounded)
+    ? rounded.toFixed(0)
+    : rounded.toFixed(1);
+  return `${text}`;
+}
+
 // 최근 실거래 기준 1개월 평균(선택 면적 기준) 계산
 const getMonthlyAverage = (trades) => {
   const today = new Date();
@@ -49,8 +67,8 @@ export default function TradeSidebar({ parcelId }) {
   const [startDate, setStartDate] = useState('2006-01-01'); // 시작일 고정
   const [endDate, setEndDate] = useState(null); // 종료일(오늘)
 
-  const [selectedExclArea, setSelectedExclArea] = useState(null); // 선택된 면적
-  const [availableExclAreas, setAvailableExclAreas] = useState([]); // 가능 면적 목록
+  const [selectedExclArea, setSelectedExclArea] = useState(null); // 선택된 면적(m²)
+  const [availableExclAreas, setAvailableExclAreas] = useState([]); // 가능 면적 목록(m²)
   const [showExclAreaList, setShowExclAreaList] = useState(false); // 면적 리스트 토글
   const [activeRange, setActiveRange] = useState('last3years'); // 'last3years' | 'all'
 
@@ -121,7 +139,7 @@ export default function TradeSidebar({ parcelId }) {
         const today = new Date();
         setEndDate(formatDate(today));
 
-        // 면적 목록 구성
+        // 면적 목록 구성 (원본 m² 유지)
         const distinctExclAreas = [
           ...new Set(tradesList.map((trade) => trade.exclArea)),
         ]
@@ -132,7 +150,7 @@ export default function TradeSidebar({ parcelId }) {
 
         setAvailableExclAreas(distinctExclAreas);
 
-        // 기본 선택 면적: 최신 거래의 면적
+        // 기본 선택 면적: 최신 거래의 면적(m²)
         setSelectedExclArea(tradesList[0]?.exclArea ?? null);
       } catch (e) {
         console.error(`/api/v1/trade/${parcelId} 실패`, e);
@@ -149,7 +167,7 @@ export default function TradeSidebar({ parcelId }) {
   }, [parcelId]);
 
   const handleDateRangeChange = (range) => {
-    setActiveRange(range); // ✅ 오타 수정
+    setActiveRange(range);
 
     const today = new Date();
     let newStartDate;
@@ -168,8 +186,8 @@ export default function TradeSidebar({ parcelId }) {
     setEndDate(formatDate(newEndDate));
   };
 
-  const handleExclAreaSelect = (area) => {
-    setSelectedExclArea(area);
+  const handleExclAreaSelect = (areaM2) => {
+    setSelectedExclArea(areaM2);
     setShowExclAreaList(false);
   };
 
@@ -268,7 +286,10 @@ export default function TradeSidebar({ parcelId }) {
             onClick={handleExclAreaClick}
             className='flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#3b5cff] shadow-sm hover:bg-slate-50'
           >
-            {selectedExclArea ? `${selectedExclArea}평` : '평수 선택'}
+            {/* ✅ m² -> 평 표시 */}
+            {selectedExclArea != null
+              ? formatPyeongFromM2(selectedExclArea)
+              : '평수 선택'}
             <svg
               className={`h-4 w-4 transition-transform ${
                 showExclAreaList ? 'rotate-180' : ''
@@ -287,19 +308,20 @@ export default function TradeSidebar({ parcelId }) {
 
           {showExclAreaList && (
             <ul className='absolute right-0 z-10 mt-2 max-h-48 w-32 overflow-auto rounded-md border border-slate-200 bg-white py-1 text-[12px] shadow-lg'>
-              {availableExclAreas.map((area) => (
-                <li key={String(area)}>
+              {availableExclAreas.map((areaM2) => (
+                <li key={String(areaM2)}>
                   <button
                     type='button'
-                    onClick={() => handleExclAreaSelect(area)}
+                    onClick={() => handleExclAreaSelect(areaM2)}
                     className={[
                       'w-full px-3 py-2 text-left hover:bg-slate-50',
-                      area === selectedExclArea
+                      areaM2 === selectedExclArea
                         ? 'font-semibold text-[#3b5cff]'
                         : 'text-slate-700',
                     ].join(' ')}
                   >
-                    {area}평
+                    {/* ✅ 리스트도 평 표시 */}
+                    {formatPyeongFromM2(areaM2)}
                   </button>
                 </li>
               ))}
@@ -350,14 +372,15 @@ export default function TradeSidebar({ parcelId }) {
                 }
                 className='border-b border-slate-100 text-slate-700'
               >
-                <td className='py-1 text-center text-[14px]'>
+                <td className='py-1 text-left text-[14px]'>
                   {formatDate(trade.dealDate)}
                 </td>
-                <td className='py-1 text-right text-[14px] font-semibold'>
+                <td className='py-1 text-left text-[14px] font-semibold'>
                   {formatPrice(toWonFromMan(trade.dealAmount))}
                 </td>
-                <td className='py-1 text-right text-[14px] font-semibold'>
-                  {trade.exclArea}
+                <td className='py-1 text-left text-[14px] font-semibold'>
+                  {/* ✅ 테이블도 평 표시 */}
+                  {formatPyeongFromM2(trade.exclArea)}
                 </td>
                 <td className='py-1 text-right text-[14px]'>
                   {formatDongFloor(trade.aptDong, trade.floor)}
@@ -394,7 +417,6 @@ export default function TradeSidebar({ parcelId }) {
   );
 }
 
-// 날짜 형식 변환: YYYY-MM-DD
 function formatDate(value) {
   if (!value) return '-';
   const d = new Date(value);
@@ -405,10 +427,6 @@ function formatDate(value) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-/**
- * ✅ formatPrice는 "원 단위" 숫자를 받아서
- * "14억 2,500만" 형태로 출력
- */
 function formatPrice(priceWon) {
   if (priceWon == null) return '-';
   const n = Number(priceWon);
@@ -461,7 +479,6 @@ function TradePriceChart({ data, monthlyAvgPrice }) {
           width={40}
         />
 
-        {/* ✅ hover 시: 해당 월 평균 + 거래건수 + 최근 1개월 평균 표시 */}
         <Tooltip
           content={<TradeChartTooltip monthlyAvgPrice={monthlyAvgPrice} />}
         />
