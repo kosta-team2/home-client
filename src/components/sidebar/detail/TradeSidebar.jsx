@@ -56,6 +56,7 @@ export default function TradeSidebar({ parcelId }) {
 
   // ✅ 월별 평균 차트 데이터 생성 (YY-MM 표시, 내부 date는 Date)
   // ✅ avgPrice는 "원" 단위로 만든다.
+  // ✅ count 포함(tooltip에서 거래건수 표시)
   const processChartData = (tradesList) => {
     const groupedData = {};
 
@@ -88,6 +89,7 @@ export default function TradeSidebar({ parcelId }) {
         return {
           date: d, // X축 date
           avgPrice: groupedData[key].totalPriceWon / groupedData[key].count, // ✅ 원 단위
+          count: groupedData[key].count, // ✅ 거래건수
         };
       });
 
@@ -147,7 +149,7 @@ export default function TradeSidebar({ parcelId }) {
   }, [parcelId]);
 
   const handleDateRangeChange = (range) => {
-    +setActiveRange(range);
+    setActiveRange(range); // ✅ 오타 수정
 
     const today = new Date();
     let newStartDate;
@@ -222,16 +224,6 @@ export default function TradeSidebar({ parcelId }) {
 
   return (
     <div className='flex-1'>
-      {/* 상단 평균 */}
-      <section className='border-b border-slate-100 px-4 pt-3 pb-4'>
-        <div className='text-[11px] text-slate-400'>
-          최근 실거래 기준 1개월 평균
-        </div>
-        <div className='mt-1 text-xl font-semibold text-[#3fc9ff]'>
-          {monthlyAvgPrice ? formatPrice(monthlyAvgPrice) : '-'}
-        </div>
-      </section>
-
       {/* ✅ 사진처럼: 왼쪽 탭 + 오른쪽 드롭다운 */}
       <div className='mt-3 flex items-center justify-between px-1'>
         {/* 왼쪽: 기간 탭 */}
@@ -331,7 +323,10 @@ export default function TradeSidebar({ parcelId }) {
             차트 데이터가 없습니다.
           </div>
         ) : (
-          <TradePriceChart data={filteredChartData} />
+          <TradePriceChart
+            data={filteredChartData}
+            monthlyAvgPrice={monthlyAvgPrice}
+          />
         )}
       </div>
 
@@ -423,9 +418,9 @@ function formatPrice(priceWon) {
   const man = Math.round((n % 100_000_000) / 10_000);
 
   if (eok > 0) {
-    return man > 0 ? `${eok}억 ${man.toLocaleString()}` : `${eok}억`;
+    return man > 0 ? `${eok}억 ${man.toLocaleString()}만` : `${eok}억`;
   }
-  return `${man.toLocaleString()}`;
+  return `${man.toLocaleString()}만`;
 }
 
 function formatDongFloor(dong, floor) {
@@ -443,7 +438,7 @@ function formatDongFloor(dong, floor) {
   return '-';
 }
 
-function TradePriceChart({ data }) {
+function TradePriceChart({ data, monthlyAvgPrice }) {
   const chartData = useMemo(() => data, [data]);
 
   return (
@@ -465,15 +460,12 @@ function TradePriceChart({ data }) {
           tickFormatter={(v) => `${(v / 100_000_000).toFixed(1)}억`}
           width={40}
         />
+
+        {/* ✅ hover 시: 해당 월 평균 + 거래건수 + 최근 1개월 평균 표시 */}
         <Tooltip
-          formatter={(value) => formatPrice(value)}
-          labelFormatter={(label) => {
-            const d = new Date(label);
-            const yy = String(d.getFullYear()).slice(2);
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            return `${yy}-${mm}`;
-          }}
+          content={<TradeChartTooltip monthlyAvgPrice={monthlyAvgPrice} />}
         />
+
         <Line
           type='monotone'
           dataKey='avgPrice'
@@ -483,5 +475,42 @@ function TradePriceChart({ data }) {
         />
       </LineChart>
     </ResponsiveContainer>
+  );
+}
+
+function TradeChartTooltip({ active, payload, label, monthlyAvgPrice }) {
+  if (!active || !payload || payload.length === 0) return null;
+
+  const point = payload[0]?.payload; // { date, avgPrice, count }
+  const d = new Date(label);
+  const yy = String(d.getFullYear()).slice(2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const monthText = `${yy}-${mm}`;
+
+  return (
+    <div className='rounded-md border border-slate-200 bg-white px-3 py-2 text-[12px] shadow-lg'>
+      <div className='font-semibold text-slate-800'>{monthText}</div>
+
+      <div className='mt-1 flex items-center justify-between gap-6'>
+        <span className='text-slate-500'>월 평균</span>
+        <span className='font-semibold text-slate-800'>
+          {formatPrice(point?.avgPrice)}
+        </span>
+      </div>
+
+      <div className='mt-1 flex items-center justify-between gap-6'>
+        <span className='text-slate-500'>거래건수</span>
+        <span className='font-semibold text-slate-800'>
+          {point?.count ?? '-'}건
+        </span>
+      </div>
+
+      <div className='mt-2 flex items-center justify-between gap-6 border-t border-slate-100 pt-2'>
+        <span className='text-slate-500'>최근 1개월 평균</span>
+        <span className='font-semibold text-[#3b5cff]'>
+          {monthlyAvgPrice ? formatPrice(monthlyAvgPrice) : '-'}
+        </span>
+      </div>
+    </div>
   );
 }
