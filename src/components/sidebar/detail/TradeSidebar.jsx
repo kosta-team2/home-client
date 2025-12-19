@@ -424,11 +424,17 @@ function formatPrice(priceWon) {
 }
 
 function formatDongFloor(dong, floor) {
-  const dongText = dong ? `${dong}동` : '';
-  const floorText = floor ? `${floor}층` : '';
-  if (dongText && floorText) return `${dongText} / ${floorText}`;
-  if (dongText) return dongText;
-  if (floorText) return floorText;
+  const hasDong =
+    dong !== null && dong !== undefined && String(dong).trim() !== '';
+  const hasFloor =
+    floor !== null && floor !== undefined && String(floor).trim() !== '';
+
+  const dongText = hasDong ? `${String(dong).trim()}동` : '';
+  const floorText = hasFloor ? `${String(floor).trim()}층` : '';
+
+  if (hasDong && hasFloor) return `${dongText} / ${floorText}`;
+  if (hasDong) return dongText;
+  if (hasFloor) return floorText;
   return '-';
 }
 
