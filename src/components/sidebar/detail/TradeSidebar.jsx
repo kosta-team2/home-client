@@ -38,27 +38,6 @@ function formatPyeongFromM2(m2) {
   return `${text}`;
 }
 
-// 최근 실거래 기준 1개월 평균(선택 면적 기준) 계산
-const getMonthlyAverage = (trades) => {
-  const today = new Date();
-  const oneMonthAgo = new Date();
-  oneMonthAgo.setMonth(today.getMonth() - 1);
-
-  const recentTrades = trades.filter((trade) => {
-    const tradeDate = new Date(trade.dealDate);
-    return tradeDate >= oneMonthAgo && tradeDate <= today;
-  });
-
-  if (recentTrades.length > 0) {
-    const totalAmountWon = recentTrades.reduce((acc, trade) => {
-      return acc + (toWonFromMan(trade.dealAmount) ?? 0);
-    }, 0);
-    return totalAmountWon / recentTrades.length; // ✅ 평균(원 단위)
-  }
-
-  return null;
-};
-
 export default function TradeSidebar({ parcelId }) {
   const [trades, setTrades] = useState([]); // 거래 목록(원본)
   const [loadingTrades, setLoadingTrades] = useState(false);
@@ -234,12 +213,6 @@ export default function TradeSidebar({ parcelId }) {
     );
   }, [trades, selectedExclArea, startDate, endDate]);
 
-  // ✅ “최근 1개월 평균”도 선택면적 기준으로 계산 (원 단위)
-  const monthlyAvgPrice = useMemo(() => {
-    if (!chartSourceTrades || chartSourceTrades.length === 0) return null;
-    return getMonthlyAverage(chartSourceTrades);
-  }, [chartSourceTrades]);
-
   return (
     <div className='flex-1'>
       {/* ✅ 사진처럼: 왼쪽 탭 + 오른쪽 드롭다운 */}
@@ -345,10 +318,7 @@ export default function TradeSidebar({ parcelId }) {
             차트 데이터가 없습니다.
           </div>
         ) : (
-          <TradePriceChart
-            data={filteredChartData}
-            monthlyAvgPrice={monthlyAvgPrice}
-          />
+          <TradePriceChart data={filteredChartData} />
         )}
       </div>
 
@@ -456,7 +426,7 @@ function formatDongFloor(dong, floor) {
   return '-';
 }
 
-function TradePriceChart({ data, monthlyAvgPrice }) {
+function TradePriceChart({ data }) {
   const chartData = useMemo(() => data, [data]);
 
   return (
@@ -479,9 +449,8 @@ function TradePriceChart({ data, monthlyAvgPrice }) {
           width={40}
         />
 
-        <Tooltip
-          content={<TradeChartTooltip monthlyAvgPrice={monthlyAvgPrice} />}
-        />
+        {/* ✅ recharts가 active/payload/label을 확실히 주입하도록 함수로 */}
+        <Tooltip content={(props) => <TradeChartTooltip {...props} />} />
 
         <Line
           type='monotone'
