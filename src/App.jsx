@@ -30,6 +30,19 @@ export default function App() {
 
   const [openFilterKey, setOpenFilterKey] = useState(null);
 
+  // ✅ 요청/렌더 타이밍 측정용 상태
+  const [timing, setTiming] = useState({
+    apiMs: null, // axios 요청~응답
+    uiMs: null, // axios 요청~(화면 반영 후)
+    lastCount: 0,
+    lastEndpoint: '',
+    lastLevel: null,
+    lastAt: null,
+  });
+
+  // ✅ 최신 요청만 반영(지도 idle이 연속으로 들어올 때 “느린 응답이 나중에 와서 덮어쓰기” 방지)
+  const reqSeqRef = useRef(0);
+
   const resolveEndpoint = (level) => {
     if (level <= 4) return 'api/v1/map/complexes';
     return 'api/v1/map/regions';
@@ -78,6 +91,13 @@ export default function App() {
       const sw = bounds.getSouthWest();
       const ne = bounds.getNorthEast();
 
+      console.log('[MAP BOUNDS]', {
+        level,
+        center: { lat: center.getLat(), lng: center.getLng() },
+        sw: { lat: sw.getLat(), lng: sw.getLng() },
+        ne: { lat: ne.getLat(), lng: ne.getLng() },
+      });
+
       dispatch(setMapCenter({ lat: center.getLat(), lng: center.getLng() }));
       dispatch(setMapLevel(level));
 
@@ -100,8 +120,17 @@ export default function App() {
             region: resolveRegionKeyForApi(level),
           };
 
+      // ✅ 타이밍 측정 시작
+      const t0 = performance.now();
+      const seq = ++reqSeqRef.current;
+
       try {
         const res = await axiosInstance.post(url, payload);
+        const tApi = performance.now(); // ✅ 응답 도착
+
+        // ✅ 최신 요청만 반영 (이전 요청이 늦게 와서 덮어쓰는 것 방지)
+        if (seq !== reqSeqRef.current) return;
+
         const list = Array.isArray(res.data) ? res.data : [];
 
         const parsed = list.map((item) => ({
@@ -117,10 +146,44 @@ export default function App() {
           dispatch(setRegionMarkers(parsed));
           dispatch(setComplexMarkers([]));
         }
+
+        // ✅ “화면 반영”까지(다음 페인트 이후) 측정
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const tPaint = performance.now();
+            setTiming({
+              apiMs: tApi - t0,
+              uiMs: tPaint - t0,
+              lastCount: parsed.length,
+              lastEndpoint: url,
+              lastLevel: level,
+              lastAt: new Date().toLocaleTimeString(),
+            });
+          });
+        });
       } catch (e) {
         console.log(e);
+
+        // ✅ 최신 요청만 반영
+        if (seq !== reqSeqRef.current) return;
+
         dispatch(setRegionMarkers([]));
         dispatch(setComplexMarkers([]));
+
+        const tFail = performance.now();
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const tPaint = performance.now();
+            setTiming({
+              apiMs: tFail - t0,
+              uiMs: tPaint - t0,
+              lastCount: 0,
+              lastEndpoint: url,
+              lastLevel: level,
+              lastAt: new Date().toLocaleTimeString(),
+            });
+          });
+        });
       }
     },
     [dispatch],
@@ -188,6 +251,41 @@ export default function App() {
 
           <div className='flex-1'>
             <div className='relative h-full w-full'>
+              {/* ✅ 디버그: 요청/렌더 시간 오버레이 */}
+              <div className='pointer-events-none absolute top-3 right-3 z-50 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-xs text-slate-700 shadow-sm backdrop-blur'>
+                <div className='font-semibold text-slate-800'>Perf</div>
+                <div>
+                  API:{' '}
+                  <span className='font-mono'>
+                    {timing.apiMs == null
+                      ? '-'
+                      : `${timing.apiMs.toFixed(1)} ms`}
+                  </span>
+                </div>
+                <div>
+                  UI:{' '}
+                  <span className='font-mono'>
+                    {timing.uiMs == null ? '-' : `${timing.uiMs.toFixed(1)} ms`}
+                  </span>
+                </div>
+                <div>
+                  count: <span className='font-mono'>{timing.lastCount}</span>
+                </div>
+                <div>
+                  level:{' '}
+                  <span className='font-mono'>{timing.lastLevel ?? '-'}</span>
+                </div>
+                <div className='max-w-[220px] truncate'>
+                  endpoint:{' '}
+                  <span className='font-mono'>
+                    {timing.lastEndpoint || '-'}
+                  </span>
+                </div>
+                <div>
+                  at: <span className='font-mono'>{timing.lastAt || '-'}</span>
+                </div>
+              </div>
+
               <KakaoMap
                 center={mapCenter}
                 level={mapLevel}
