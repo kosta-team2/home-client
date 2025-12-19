@@ -288,7 +288,7 @@ export default function TradeSidebar({ parcelId }) {
           >
             {/* ✅ m² -> 평 표시 */}
             {selectedExclArea != null
-              ? formatPyeongFromM2(selectedExclArea)
+              ? formatPyeongFromM2(selectedExclArea) + '평'
               : '평수 선택'}
             <svg
               className={`h-4 w-4 transition-transform ${
@@ -321,7 +321,7 @@ export default function TradeSidebar({ parcelId }) {
                     ].join(' ')}
                   >
                     {/* ✅ 리스트도 평 표시 */}
-                    {formatPyeongFromM2(areaM2)}
+                    {formatPyeongFromM2(areaM2) + '평'}
                   </button>
                 </li>
               ))}
@@ -495,7 +495,7 @@ function TradePriceChart({ data, monthlyAvgPrice }) {
   );
 }
 
-function TradeChartTooltip({ active, payload, label, monthlyAvgPrice }) {
+function TradeChartTooltip({ active, payload, label }) {
   if (!active || !payload || payload.length === 0) return null;
 
   const point = payload[0]?.payload; // { date, avgPrice, count }
@@ -519,13 +519,6 @@ function TradeChartTooltip({ active, payload, label, monthlyAvgPrice }) {
         <span className='text-slate-500'>거래건수</span>
         <span className='font-semibold text-slate-800'>
           {point?.count ?? '-'}건
-        </span>
-      </div>
-
-      <div className='mt-2 flex items-center justify-between gap-6 border-t border-slate-100 pt-2'>
-        <span className='text-slate-500'>최근 1개월 평균</span>
-        <span className='font-semibold text-[#3b5cff]'>
-          {monthlyAvgPrice ? formatPrice(monthlyAvgPrice) : '-'}
         </span>
       </div>
     </div>
