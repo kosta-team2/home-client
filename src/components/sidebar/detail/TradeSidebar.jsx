@@ -122,7 +122,12 @@ export default function TradeSidebar({ parcelId }) {
         // 면적 목록 구성
         const distinctExclAreas = [
           ...new Set(tradesList.map((trade) => trade.exclArea)),
-        ];
+        ]
+          .filter(
+            (v) => v !== null && v !== undefined && String(v).trim() !== '',
+          )
+          .sort((a, b) => Number(a) - Number(b));
+
         setAvailableExclAreas(distinctExclAreas);
 
         // 기본 선택 면적: 최신 거래의 면적
