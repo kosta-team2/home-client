@@ -1,10 +1,10 @@
-import { Bell } from 'lucide-react';
+import { Bell, Heart } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { tokenStore } from '../auth/token';
 import { NOTIFICATIONS } from '../data/mockData';
-import { toggleNotifications } from '../store/uiSlice';
+import { setSidebarMode, toggleNotifications } from '../store/uiSlice';
 
 import LoginModal from './LoginModal';
 
@@ -12,19 +12,14 @@ export default function Header() {
   const dispatch = useDispatch();
   const showNotifications = useSelector((state) => state.ui.showNotifications);
 
-  // ✅ 로그인 모달
   const [loginOpen, setLoginOpen] = useState(false);
 
-  // ✅ accessToken 존재 여부(토큰 store 변경 시 리렌더)
   const [isLoggedIn, setIsLoggedIn] = useState(!!tokenStore.get());
-  useEffect(() => {
-    return tokenStore.subscribe((t) => setIsLoggedIn(!!t));
-  }, []);
+  useEffect(() => tokenStore.subscribe((t) => setIsLoggedIn(!!t)), []);
 
   return (
     <header className='border-b border-slate-200 bg-gradient-to-r from-sky-50 via-white to-sky-100'>
       <div className='flex items-center justify-between px-8 py-3'>
-        {/* 로고 영역 (원래 SVG 복구) */}
         <div className='flex items-center gap-3'>
           <div className='flex h-9 w-9 items-center justify-center rounded-xl border border-sky-100 bg-white shadow-sm'>
             <svg
@@ -78,9 +73,18 @@ export default function Header() {
           </div>
         </div>
 
-        {/* 알림 + 사용자 */}
         <div className='relative flex items-center gap-4'>
-          {/* 알림 버튼 */}
+          {isLoggedIn && (
+            <button
+              type='button'
+              onClick={() => dispatch(setSidebarMode('favorites'))}
+              className='text-slate-500 hover:text-sky-600'
+              title='관심지역'
+            >
+              <Heart className='h-5 w-5' />
+            </button>
+          )}
+
           <button
             type='button'
             onClick={() => dispatch(toggleNotifications())}
@@ -89,7 +93,6 @@ export default function Header() {
             <Bell className='h-5 w-5' />
           </button>
 
-          {/* 알림 드롭다운 (원래 UI 복구) */}
           {showNotifications && (
             <div className='absolute top-8 right-0 z-[900] w-80 rounded-2xl border border-slate-100 bg-white p-3 shadow-xl'>
               <div className='mb-2 flex items-center justify-between'>
@@ -135,7 +138,6 @@ export default function Header() {
             </div>
           )}
 
-          {/* 로그인된 사용자 배지 or 로그인 버튼 (원래 배지 UI 유지 + 분기만 추가) */}
           {isLoggedIn ? (
             <div className='flex items-center gap-2 rounded-full border border-sky-100 bg-white/80 px-3 py-1 shadow-sm'>
               <div className='flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-sky-500 text-[11px] font-semibold text-white'>
