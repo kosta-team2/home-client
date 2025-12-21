@@ -25,6 +25,7 @@ const uiSlice = createSlice({
     mapCenter: initialCenter,
     mapLevel: 10,
     aggregatedMarkers: [],
+    sidebarMode: 'region-nav',
     previousSidebarMode: null,
     selectedParcelId: null,
     regionMarkers: [], // 시/도, 시/군/구, 읍/면/동 집계용
