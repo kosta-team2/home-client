@@ -1,21 +1,30 @@
 import axiosInstance from '@axios/AxiosInstance';
+import { Heart, HeartOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import TradeSidebar from './TradeSidebar'; // 새로운 trade 파일 import
+import { tokenStore } from '../../../auth/token';
+import Toast from '../../common/Toast';
+import LoginModal from '../../LoginModal';
+
+import TradeSidebar from './TradeSidebar';
 
 export default function DetailSidebar({ parcelId, onBack }) {
-  // /detail 데이터
   const [detail, setDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState(null);
 
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    }
-  };
+  const [favLoading, setFavLoading] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
 
-  // 단지 기본 정보 조회
+  const [toast, setToast] = useState({ open: false, msg: '' });
+  const showToast = (msg) => setToast({ open: true, msg });
+
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(!!tokenStore.get());
+  useEffect(() => tokenStore.subscribe((t) => setIsLoggedIn(!!t)), []);
+
+  const handleBack = () => onBack?.();
+
   useEffect(() => {
     if (!parcelId) return;
 
@@ -23,7 +32,6 @@ export default function DetailSidebar({ parcelId, onBack }) {
       try {
         setLoadingDetail(true);
         setDetailError(null);
-
         const res = await axiosInstance.get(`/api/v1/detail/${parcelId}`);
         setDetail(res.data);
       } catch (e) {
@@ -38,14 +46,89 @@ export default function DetailSidebar({ parcelId, onBack }) {
     fetchDetail();
   }, [parcelId]);
 
-  const formattedAddress = useMemo(() => {
-    if (!detail) return '';
-    return detail.address || '';
-  }, [detail]);
+  const checkFavorite = async () => {
+    if (!parcelId) return;
+    if (!isLoggedIn) {
+      setIsFavorite(false);
+      return;
+    }
+
+    try {
+      const res = await axiosInstance.get(`/api/v1/favorites/exists`, {
+        params: { parcelId },
+      });
+      setIsFavorite(!!res.data);
+    } catch (e) {
+      console.log(e);
+      if (e?.response?.status === 401) setLoginOpen(true);
+    }
+  };
+
+  useEffect(() => {
+    checkFavorite();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parcelId, isLoggedIn]);
+
+  const formattedAddress = useMemo(() => detail?.address || '', [detail]);
+
+  const handleToggleFavorite = async () => {
+    if (!detail || !parcelId) return;
+
+    if (!isLoggedIn) {
+      setLoginOpen(true);
+      return;
+    }
+
+    try {
+      setFavLoading(true);
+
+      if (!isFavorite) {
+        await axiosInstance.post('/api/v1/favorites', {
+          parcelId,
+          complexName: detail.tradeName ?? detail.name ?? '단지',
+        });
+        setIsFavorite(true);
+        showToast('관심지역으로 등록했습니다.');
+      } else {
+        const listRes = await axiosInstance.get('/api/v1/favorites');
+        const found = Array.isArray(listRes.data)
+          ? listRes.data.find((x) => Number(x.parcelId) === Number(parcelId))
+          : null;
+
+        if (!found?.id) {
+          showToast('이미 해제된 관심지역입니다.');
+          setIsFavorite(false);
+          return;
+        }
+
+        await axiosInstance.delete(`/api/v1/favorites/${found.id}`);
+        setIsFavorite(false);
+        showToast('관심지역에서 해제했습니다.');
+      }
+    } catch (e) {
+      console.log(e);
+
+      if (e?.response?.status === 401) {
+        setLoginOpen(true);
+        return;
+      }
+
+      alert('관심지역 처리에 실패했습니다.');
+    } finally {
+      setFavLoading(false);
+    }
+  };
 
   return (
     <div className='flex h-full flex-col bg-white'>
-      {/* 헤더 */}
+      <Toast
+        open={toast.open}
+        message={toast.msg}
+        onClose={() => setToast((p) => ({ ...p, open: false }))}
+      />
+
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+
       <header className='flex items-center justify-between bg-[#d6f3ff] px-4 py-3 text-black'>
         <button
           type='button'
@@ -64,18 +147,36 @@ export default function DetailSidebar({ parcelId, onBack }) {
           </div>
         </div>
 
-        <div className='w-6' />
+        <button
+          type='button'
+          onClick={handleToggleFavorite}
+          disabled={favLoading || !detail}
+          className={`flex h-8 w-8 items-center justify-center rounded-full shadow-sm backdrop-blur transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 ${
+            isFavorite
+              ? 'bg-white/60 text-rose-500 hover:bg-white/75'
+              : 'bg-white/40 text-slate-700 hover:bg-white/55'
+          } ${favLoading ? 'opacity-60' : ''}`}
+          title={
+            !isLoggedIn
+              ? '로그인 후 이용 가능합니다'
+              : isFavorite
+                ? '관심지역 해제'
+                : '관심지역 등록'
+          }
+        >
+          {isFavorite ? (
+            <HeartOff className='h-4 w-4' />
+          ) : (
+            <Heart className='h-4 w-4' />
+          )}
+        </button>
       </header>
 
-      {/* 내용 */}
       <div className='flex-1 overflow-y-auto'>
-        {/* 실거래 요약 / 차트 */}
         <section className='border-b border-slate-100 px-4 pt-3 pb-4'>
-          {/* 여기서 TradeSidebar를 사용합니다. */}
           <TradeSidebar parcelId={parcelId} />
         </section>
 
-        {/* 단지 기본정보 */}
         <section className='px-4 pt-4 pb-6'>
           <h3 className='mb-2 text-[13px] font-semibold text-slate-800'>
             단지 기본정보
@@ -149,8 +250,6 @@ export default function DetailSidebar({ parcelId, onBack }) {
     </div>
   );
 }
-
-// 나머지 코드 (DetailRow, formatPrice 등)
 
 function DetailRow({ label, value }) {
   if (value == null || value === 'null') return null;
