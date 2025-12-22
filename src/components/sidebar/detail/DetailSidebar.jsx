@@ -79,6 +79,13 @@ export default function DetailSidebar({ parcelId, onBack }) {
       return;
     }
 
+    if (!isFavorite) {
+      const ok = window.confirm(
+        '해당 지역을 관심지역으로 설정하시겠습니까?\n(실거래가 변동시 로그인한 계정으로 알림이 발송됩니다.)',
+      );
+      if (!ok) return;
+    }
+
     try {
       setFavLoading(true);
 
