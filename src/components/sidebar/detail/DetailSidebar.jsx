@@ -8,6 +8,36 @@ import LoginModal from '../../LoginModal';
 
 import TradeSidebar from './TradeSidebar';
 
+// ✅ m² -> 평 변환 (1평 = 3.305785 m²)
+function m2ToPyeong(m2) {
+  const n = Number(m2);
+  if (!Number.isFinite(n)) return null;
+  return n / 3.305785;
+}
+
+// ✅ "123.4㎡ (37.3평)" 형태로 출력
+function formatAreaWithPyeong(m2, options = {}) {
+  const { showM2 = true, digits = 1 } = options;
+
+  const m2Num = Number(m2);
+  if (!Number.isFinite(m2Num)) return '-';
+
+  const py = m2ToPyeong(m2Num);
+  const pyRounded = py == null ? null : Math.round(py * 10) / 10;
+
+  const pyText =
+    pyRounded == null
+      ? '-'
+      : Number.isInteger(pyRounded)
+        ? pyRounded.toFixed(0)
+        : pyRounded.toFixed(digits);
+
+  const m2Text = showM2 ? `${m2Num.toLocaleString()}㎡` : '';
+  const pyPart = `(${pyText}평)`;
+
+  return showM2 ? `${m2Text} ${pyPart}` : `${pyText}평`;
+}
+
 export default function DetailSidebar({ parcelId, onBack }) {
   const [detail, setDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -220,11 +250,13 @@ export default function DetailSidebar({ parcelId, onBack }) {
                 label='동수'
                 value={detail.dongCnt ? `${detail.dongCnt}개동` : '-'}
               />
+
+              {/* ✅ 여기부터 면적은 평수로 같이 표시 */}
               <DetailRow
                 label='대지면적'
                 value={
                   detail.platArea
-                    ? `${detail.platArea.toLocaleString()}㎡`
+                    ? formatAreaWithPyeong(detail.platArea, { showM2: true })
                     : '-'
                 }
               />
@@ -232,16 +264,19 @@ export default function DetailSidebar({ parcelId, onBack }) {
                 label='건축면적'
                 value={
                   detail.archArea
-                    ? `${detail.archArea.toLocaleString()}㎡`
+                    ? formatAreaWithPyeong(detail.archArea, { showM2: true })
                     : '-'
                 }
               />
               <DetailRow
                 label='연면적'
                 value={
-                  detail.totArea ? `${detail.totArea.toLocaleString()}㎡` : '-'
+                  detail.totArea
+                    ? formatAreaWithPyeong(detail.totArea, { showM2: true })
+                    : '-'
                 }
               />
+
               <DetailRow
                 label='건폐율'
                 value={detail.bcRat ? `${detail.bcRat}%` : '-'}
