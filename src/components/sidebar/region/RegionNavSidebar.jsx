@@ -63,25 +63,40 @@ export default function RegionNavSidebar({ active = true }) {
       const res = await axiosInstance.get('/api/v1/region/' + id);
       const region = res.data;
 
-      setCurrentRegion(region);
+      // ✅ 방어: children이 배열이 아닐 경우 빈 배열로 정규화(로직은 동일)
+      const normalizedRegion =
+        region && typeof region === 'object'
+          ? {
+              ...region,
+              children: Array.isArray(region.children) ? region.children : [],
+            }
+          : region;
+
+      setCurrentRegion(normalizedRegion);
       setLevel(nextLevel);
 
-      if (region && region.latitude != null && region.longitude != null) {
+      if (
+        normalizedRegion &&
+        normalizedRegion.latitude != null &&
+        normalizedRegion.longitude != null
+      ) {
         dispatch(
           setMapCenter({
-            lat: region.latitude,
-            lng: region.longitude,
+            lat: normalizedRegion.latitude,
+            lng: normalizedRegion.longitude,
           }),
         );
         dispatch(setMapLevel(toKakaoLevel(zoomStep)));
       } else {
         console.warn(
           'loadRegion: region에 latitude/longitude가 없어 지도 이동은 생략됩니다.',
-          region,
+          normalizedRegion,
         );
       }
     } catch (e) {
       console.error(`/api/v1/region/${id} 실패`, e);
+      // ✅ 방어: 실패 시에도 그리드가 즉사하지 않도록 상태를 안전한 값으로
+      setCurrentRegion(null);
     } finally {
       setLoading(false);
     }
@@ -92,9 +107,14 @@ export default function RegionNavSidebar({ active = true }) {
       try {
         setLoading(true);
         const res = await axiosInstance.get('/api/v1/region');
-        setRootRegions(res.data);
+
+        // ✅ 방어: res.data가 배열이 아니면 빈 배열
+        const data = res?.data;
+        setRootRegions(Array.isArray(data) ? data : []);
       } catch (e) {
         console.error('/api/v1/region 조회 실패', e);
+        // ✅ 방어: 실패 시에도 배열 유지
+        setRootRegions([]);
       } finally {
         setLoading(false);
       }
@@ -103,12 +123,20 @@ export default function RegionNavSidebar({ active = true }) {
     loadRoot();
   }, []);
 
+  // ✅ 방어: currentItems는 언제나 배열
   const currentItems =
-    level === 0 ? rootRegions : currentRegion?.children || [];
+    level === 0
+      ? Array.isArray(rootRegions)
+        ? rootRegions
+        : []
+      : Array.isArray(currentRegion?.children)
+        ? currentRegion.children
+        : [];
 
+  // ✅ 방어: 필터링도 배열에서만
   const filteredItems = searchText
     ? currentItems.filter((item) =>
-        item.name.toLowerCase().includes(searchText.toLowerCase()),
+        (item?.name ?? '').toLowerCase().includes(searchText.toLowerCase()),
       )
     : currentItems;
 

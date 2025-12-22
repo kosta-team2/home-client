@@ -9,7 +9,7 @@ function formatToEok(amount) {
   const n = Number(amount);
   if (!Number.isFinite(n)) return '-';
 
-  const eok = n / 100000000;
+  const eok = n / 10000;
   const rounded = Math.round(eok * 10) / 10;
 
   const text = Number.isInteger(rounded)
