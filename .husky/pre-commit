@@ -1,1 +1,3 @@
-npm exec lint-staged
+# eslint / prettier 확인
+echo "코드 컨벤션을 확인합니다..."
+./node_modules/.bin/lint-staged

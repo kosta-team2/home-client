@@ -1,7 +1,13 @@
-// src/store/uiSlice.js
 import { createSlice } from '@reduxjs/toolkit';
 
-import { METRICS } from '../data/mockData';
+import axiosInstance from '../axiosInstance/AxiosInstance';
+
+export const FILTER_DEFAULTS = {
+  priceEok: [0, 80],
+  pyeong: [0, 120],
+  age: [0, 40],
+  unit: [0, 5000],
+};
 
 const initialCenter = {
   lat: 37.5662952,
@@ -12,14 +18,22 @@ const uiSlice = createSlice({
   name: 'ui',
   initialState: {
     searchText: '',
-    selectedMetrics: METRICS,
     selectedSido: '경기도',
     selectedSgg: null,
     selectedEmd: null,
     showNotifications: false,
     mapCenter: initialCenter,
-    mapLevel: 7,
+    mapLevel: 10,
     aggregatedMarkers: [],
+    sidebarMode: 'region-nav',
+    previousSidebarMode: null,
+    selectedParcelId: null,
+    regionMarkers: [], // 시/도, 시/군/구, 읍/면/동 집계용
+    complexMarkers: [], // 단지 상세용
+    searchResults: [],
+    searchLoading: false,
+    searchError: null,
+    filters: FILTER_DEFAULTS,
   },
   reducers: {
     setSearchText(state, action) {
@@ -36,11 +50,13 @@ const uiSlice = createSlice({
       }
     },
     resetFilters(state) {
-      state.selectedMetrics = METRICS;
       state.selectedSido = '경기도';
       state.selectedSgg = null;
       state.selectedEmd = null;
       state.searchText = '';
+      state.sidebarMode = 'region-nav';
+      state.previousSidebarMode = null;
+      state.filters = FILTER_DEFAULTS;
     },
     selectSido(state, action) {
       state.selectedSido = action.payload;
@@ -63,8 +79,45 @@ const uiSlice = createSlice({
     setMapLevel(state, action) {
       state.mapLevel = action.payload; // number
     },
-    setAggregatedMarkers(state, action) {
-      state.aggregatedMarkers = action.payload; // 행정 구역 마커용 집계 데이터
+
+    setRegionMarkers(state, action) {
+      state.regionMarkers = action.payload;
+    },
+
+    setComplexMarkers(state, action) {
+      state.complexMarkers = action.payload;
+    },
+    setSidebarMode(state, action) {
+      state.sidebarMode = action.payload;
+    },
+    setSelectedParcelId(state, action) {
+      state.selectedParcelId = action.payload;
+    },
+    openDetailFrom(state, action) {
+      // 마커나, 검색으로 상세페이지로 이동 시
+      state.previousSidebarMode = action.payload; // 'region-nav' | 'search-list'
+      state.sidebarMode = 'detail';
+    },
+    goBackFromDetail(state) {
+      if (state.previousSidebarMode) {
+        state.sidebarMode = state.previousSidebarMode;
+        state.previousSidebarMode = null;
+      } else {
+        state.sidebarMode = 'region-nav';
+      }
+    },
+    setSearchResults: (state, action) => {
+      state.searchResults = action.payload;
+    },
+    setSearchLoading: (state, action) => {
+      state.searchLoading = action.payload;
+    },
+    setSearchError: (state, action) => {
+      state.searchError = action.payload;
+    },
+    setFilterRange(state, action) {
+      const { key, value } = action.payload; // value: [min,max]
+      state.filters[key] = value;
     },
   },
 });
@@ -80,6 +133,34 @@ export const {
   setMapCenter,
   setMapLevel,
   setAggregatedMarkers,
+  setSidebarMode,
+  setSelectedParcelId,
+  openDetailFrom,
+  goBackFromDetail,
+  setRegionMarkers,
+  setComplexMarkers,
+  setSearchResults,
+  setSearchLoading,
+  setSearchError,
+  setFilterRange,
 } = uiSlice.actions;
+
+export const fetchSearchResults = (q) => async (dispatch) => {
+  try {
+    dispatch(setSearchLoading(true));
+    dispatch(setSearchError(null));
+    const res = await axiosInstance.get(
+      `/api/v1/search/complexes?q=${encodeURIComponent(q)}`,
+    );
+    dispatch(setSearchResults(Array.isArray(res.data) ? res.data : []));
+    console.log(res);
+  } catch (e) {
+    console.log(e);
+    dispatch(setSearchError('검색 실패'));
+    dispatch(setSearchResults([]));
+  } finally {
+    dispatch(setSearchLoading(false));
+  }
+};
 
 export default uiSlice.reducer;

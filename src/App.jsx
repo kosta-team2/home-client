@@ -1,51 +1,76 @@
-import { RefreshCcw } from 'lucide-react';
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
+import { tokenStore } from './auth/token';
 import axiosInstance from './axiosInstance/AxiosInstance';
-import FilterChip from './components/FilterChip';
+import FilterBar from './components/filters/FilterBar';
 import Header from './components/Header';
-import LeftSidebar from './components/LeftSidebar';
+import ComplexMarkers from './components/map/ComplexMarkers';
 import KakaoMap from './components/map/KakaoMap';
-import LegendBox from './components/map/LegendBox';
 import RegionMarkers from './components/map/RegionMarkers';
-import { METRICS, MARKERS } from './data/mockData';
+import LeftSidebar from './components/sidebar/LeftSidebar';
+import { FILTER_DEFAULTS, setFilterRange, resetFilters } from './store/uiSlice';
 import {
-  toggleMetric,
-  resetFilters,
   setMapCenter,
   setMapLevel,
-  setAggregatedMarkers,
+  setRegionMarkers,
+  setComplexMarkers,
 } from './store/uiSlice';
 
 export default function App() {
   const dispatch = useDispatch();
-  const {
-    selectedMetrics,
-    selectedSido,
-    selectedSgg,
-    selectedEmd,
-    mapCenter,
-    mapLevel,
-    aggregatedMarkers,
-  } = useSelector((state) => state.ui);
+  const mapRef = useRef(null);
 
-  const handleToggleMetric = (metric) => {
-    dispatch(toggleMetric(metric));
+  const { mapCenter, mapLevel, regionMarkers, complexMarkers, filters } =
+    useSelector((state) => state.ui);
+
+  const filtersRef = useRef(filters);
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
+
+  const [openFilterKey, setOpenFilterKey] = useState(null);
+
+  const resolveEndpoint = (level) => {
+    if (level <= 4) return 'api/v1/map/complexes';
+    return 'api/v1/map/regions';
   };
 
-  const handleReset = () => {
-    dispatch(resetFilters());
-  };
-
-  const resolveRegionPath = (level) => {
+  const resolveRegionKeyForApi = (level) => {
     if (level >= 10) return 'si-do';
-    if (level >= 6) return 'si-gun-gu';
-    return 'eup-myeon-dong';
+    if (level >= 7) return 'si-gun-gu';
+    if (level >= 4) return 'eup-myeon-dong';
+    return 'complex';
   };
 
-  const requestAggregatedMarkers = useCallback(
-    async (map) => {
+  const buildFilterPayload = (f) => {
+    const isFull = (key, min, max) => {
+      const [dMin, dMax] = FILTER_DEFAULTS[key];
+      return min === dMin && max === dMax;
+    };
+
+    const [priceMin, priceMax] = f.priceEok;
+    const [pyMin, pyMax] = f.pyeong;
+    const [ageMin, ageMax] = f.age;
+    const [unitMin, unitMax] = f.unit;
+
+    return {
+      priceEokMin: isFull('priceEok', priceMin, priceMax) ? null : priceMin,
+      priceEokMax: isFull('priceEok', priceMin, priceMax) ? null : priceMax,
+
+      pyeongMin: isFull('pyeong', pyMin, pyMax) ? null : pyMin,
+      pyeongMax: isFull('pyeong', pyMin, pyMax) ? null : pyMax,
+
+      ageMin: isFull('age', ageMin, ageMax) ? null : ageMin,
+      ageMax: isFull('age', ageMin, ageMax) ? null : ageMax,
+
+      unitMin: isFull('unit', unitMin, unitMax) ? null : unitMin,
+      unitMax: isFull('unit', unitMin, unitMax) ? null : unitMax,
+    };
+  };
+
+  const fetchMarkers = useCallback(
+    async (map, overrideFilters) => {
       if (!map) return;
 
       const center = map.getCenter();
@@ -54,105 +79,135 @@ export default function App() {
       const sw = bounds.getSouthWest();
       const ne = bounds.getNorthEast();
 
-      console.log('level:', level);
-
-      // 전역 상태에 지도 정보 반영
-      dispatch(
-        setMapCenter({
-          lat: center.getLat(),
-          lng: center.getLng(),
-        }),
-      );
+      dispatch(setMapCenter({ lat: center.getLat(), lng: center.getLng() }));
       dispatch(setMapLevel(level));
 
-      const regionPath = resolveRegionPath(level);
+      const url = resolveEndpoint(level);
+      const isComplexLevel = level <= 4;
 
-      const payload = {
-        swLat: sw.getLat(),
-        swLng: sw.getLng(),
-        neLat: ne.getLat(),
-        neLng: ne.getLng(),
-        region: regionPath,
-      };
+      const payload = isComplexLevel
+        ? {
+            swLat: sw.getLat(),
+            swLng: sw.getLng(),
+            neLat: ne.getLat(),
+            neLng: ne.getLng(),
+            ...buildFilterPayload(overrideFilters ?? filtersRef.current),
+          }
+        : {
+            swLat: sw.getLat(),
+            swLng: sw.getLng(),
+            neLat: ne.getLat(),
+            neLng: ne.getLng(),
+            region: resolveRegionKeyForApi(level),
+          };
 
       try {
-        const response = await axiosInstance.post(
-          'api/v1/map/get-aggregation',
-          payload,
-        );
+        const res = await axiosInstance.post(url, payload);
+        const list = Array.isArray(res.data) ? res.data : [];
 
-        console.log('payload :', payload);
-        console.log(response);
-        console.log(response.data);
-
-        const list = Array.isArray(response.data) ? response.data : [];
+        console.log(list);
 
         const parsed = list.map((item) => ({
-          id: item.id,
-          name: item.name,
+          ...item,
           lat: typeof item.lat === 'string' ? parseFloat(item.lat) : item.lat,
           lng: typeof item.lng === 'string' ? parseFloat(item.lng) : item.lng,
         }));
 
-        dispatch(setAggregatedMarkers(parsed));
-      } catch (error) {
-        console.log('@@오류!!@@');
-        console.log(error);
-        dispatch(setAggregatedMarkers([]));
+        if (isComplexLevel) {
+          dispatch(setComplexMarkers(parsed));
+          dispatch(setRegionMarkers([]));
+        } else {
+          dispatch(setRegionMarkers(parsed));
+          dispatch(setComplexMarkers([]));
+        }
+      } catch (e) {
+        console.log(e);
+        dispatch(setRegionMarkers([]));
+        dispatch(setComplexMarkers([]));
       }
     },
-    [dispatch], // resolveRegionPath는 함수 내부에서 불러서 OK
+    [dispatch],
   );
 
   const handleMapReady = useCallback(
     (map) => {
-      requestAggregatedMarkers(map);
+      mapRef.current = map;
+      fetchMarkers(map);
     },
-    [requestAggregatedMarkers],
+    [fetchMarkers],
   );
 
   const handleMapIdle = useCallback(
     (map) => {
-      requestAggregatedMarkers(map);
+      mapRef.current = map;
+      fetchMarkers(map);
     },
-    [requestAggregatedMarkers],
+    [fetchMarkers],
   );
 
+  const isComplexLevel = mapLevel <= 4;
+
+  const handleCommitRange = (key, range) => {
+    const nextFilters = {
+      ...filtersRef.current,
+      [key]: range,
+    };
+
+    dispatch(setFilterRange({ key, value: range }));
+
+    // 현재 맵 기준으로 즉시 1회 갱신
+    if (mapRef.current) fetchMarkers(mapRef.current, nextFilters);
+  };
+
+  const handleResetAll = () => {
+    dispatch(resetFilters());
+    setOpenFilterKey(null);
+
+    // reset 직후 즉시 갱신
+    const defaultFilters = {
+      unit: FILTER_DEFAULTS.unit,
+      pyeong: FILTER_DEFAULTS.pyeong,
+      priceEok: FILTER_DEFAULTS.priceEok,
+      age: FILTER_DEFAULTS.age,
+    };
+    if (mapRef.current) fetchMarkers(mapRef.current, defaultFilters);
+  };
+
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      if (window.location.pathname !== '/oauth/callback') return;
+
+      try {
+        const { data } = await axiosInstance.post('/auth/access'); // withCredentials=true여야 쿠키 전송됨
+        tokenStore.set(data.accessToken);
+
+        // URL만 /로 바꾸고 리렌더/이동 없이 유지
+        window.history.replaceState({}, '', '/');
+      } catch (e) {
+        console.log('access token issue failed:', e);
+        window.history.replaceState({}, '', '/');
+      }
+    };
+
+    handleOAuthCallback();
+  }, []);
+
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 font-['Pretendard',system-ui,sans-serif]">
+    <div className="flex h-screen flex-col overflow-hidden bg-slate-50 font-['Pretendard',system-ui,sans-serif]">
       <Header />
 
       <main className='flex flex-1 overflow-hidden'>
         <LeftSidebar />
 
-        {/* 오른쪽 지도 + 상단 필터 */}
         <section className='flex flex-1 flex-col'>
-          {/* 표시 항목 바 */}
-          <div className='border-b border-sky-100 bg-gradient-to-r from-white via-white to-sky-100'>
-            <div className='no-scrollbar flex items-center gap-2 overflow-x-auto px-6 py-2'>
-              <div className='flex items-center gap-2'>
-                {METRICS.map((metric) => (
-                  <FilterChip
-                    key={metric}
-                    label={metric}
-                    active={selectedMetrics.includes(metric)}
-                    onClick={() => handleToggleMetric(metric)}
-                  />
-                ))}
+          <FilterBar
+            filters={filters}
+            openKey={openFilterKey}
+            setOpenKey={setOpenFilterKey}
+            onCommitRange={handleCommitRange}
+            onResetAll={handleResetAll}
+          />
 
-                <button
-                  type='button'
-                  onClick={handleReset}
-                  className='inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 text-slate-400 hover:border-sky-400 hover:text-sky-600'
-                >
-                  <RefreshCcw className='h-3.5 w-3.5' />
-                </button>
-              </div>
-            </div>
-            <div className='h-[2px] bg-sky-400/70 shadow-[0_1px_4px_rgba(56,189,248,0.55)]' />
-          </div>
-
-          {/* 지도 영역 */}
           <div className='flex-1'>
             <div className='relative h-full w-full'>
               <KakaoMap
@@ -161,31 +216,12 @@ export default function App() {
                 onIdle={handleMapIdle}
                 onMapReady={handleMapReady}
               >
-                {/* <PriceChangeMarkers markers={MARKERS} /> */}
-                <RegionMarkers markers={aggregatedMarkers} />
+                {isComplexLevel ? (
+                  <ComplexMarkers markers={complexMarkers} />
+                ) : (
+                  <RegionMarkers markers={regionMarkers} />
+                )}
               </KakaoMap>
-
-              {/* 현재 보기 요약 */}
-              <div className='absolute top-4 left-4 z-50 flex flex-col gap-1 rounded-2xl border border-slate-100 bg-white/90 px-3 py-2.5 text-xs shadow-sm backdrop-blur'>
-                <div className='font-semibold text-slate-800'>현재 보기</div>
-                <div className='text-[11px] text-slate-500'>
-                  {selectedSido || '시도 미선택'}
-                  {selectedSgg && ` · ${selectedSgg}`}
-                  {selectedEmd && ` · ${selectedEmd}`}
-                </div>
-                <div className='mt-0.5 flex flex-wrap gap-1'>
-                  {selectedMetrics.map((m) => (
-                    <span
-                      key={m}
-                      className='inline-flex rounded-full border border-sky-100 bg-sky-50 px-2 py-0.5 text-[10px] text-sky-700'
-                    >
-                      {m}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <LegendBox />
             </div>
           </div>
         </section>
