@@ -20,26 +20,23 @@ function toWonFromMan(value) {
   return n * 10_000;
 }
 
-// 최근 실거래 기준 1개월 평균(선택 면적 기준) 계산
-const getMonthlyAverage = (trades) => {
-  const today = new Date();
-  const oneMonthAgo = new Date();
-  oneMonthAgo.setMonth(today.getMonth() - 1);
+// ✅ m² -> 평 변환 (1평 = 3.305785 m²)
+function m2ToPyeong(m2) {
+  const n = Number(m2);
+  if (!Number.isFinite(n)) return null;
+  return n / 3.305785;
+}
 
-  const recentTrades = trades.filter((trade) => {
-    const tradeDate = new Date(trade.dealDate);
-    return tradeDate >= oneMonthAgo && tradeDate <= today;
-  });
-
-  if (recentTrades.length > 0) {
-    const totalAmountWon = recentTrades.reduce((acc, trade) => {
-      return acc + (toWonFromMan(trade.dealAmount) ?? 0);
-    }, 0);
-    return totalAmountWon / recentTrades.length; // ✅ 평균(원 단위)
-  }
-
-  return null;
-};
+// ✅ 평 표시 포맷 (기본: 소수 1자리, 정수면 0자리)
+function formatPyeongFromM2(m2) {
+  const py = m2ToPyeong(m2);
+  if (py == null) return '-';
+  const rounded = Math.round(py * 10) / 10; // 0.1평 단위
+  const text = Number.isInteger(rounded)
+    ? rounded.toFixed(0)
+    : rounded.toFixed(1);
+  return `${text}`;
+}
 
 export default function TradeSidebar({ parcelId }) {
   const [trades, setTrades] = useState([]); // 거래 목록(원본)
@@ -49,13 +46,14 @@ export default function TradeSidebar({ parcelId }) {
   const [startDate, setStartDate] = useState('2006-01-01'); // 시작일 고정
   const [endDate, setEndDate] = useState(null); // 종료일(오늘)
 
-  const [selectedExclArea, setSelectedExclArea] = useState(null); // 선택된 면적
-  const [availableExclAreas, setAvailableExclAreas] = useState([]); // 가능 면적 목록
+  const [selectedExclArea, setSelectedExclArea] = useState(null); // 선택된 면적(m²)
+  const [availableExclAreas, setAvailableExclAreas] = useState([]); // 가능 면적 목록(m²)
   const [showExclAreaList, setShowExclAreaList] = useState(false); // 면적 리스트 토글
   const [activeRange, setActiveRange] = useState('last3years'); // 'last3years' | 'all'
 
   // ✅ 월별 평균 차트 데이터 생성 (YY-MM 표시, 내부 date는 Date)
   // ✅ avgPrice는 "원" 단위로 만든다.
+  // ✅ count 포함(tooltip에서 거래건수 표시)
   const processChartData = (tradesList) => {
     const groupedData = {};
 
@@ -88,6 +86,7 @@ export default function TradeSidebar({ parcelId }) {
         return {
           date: d, // X축 date
           avgPrice: groupedData[key].totalPriceWon / groupedData[key].count, // ✅ 원 단위
+          count: groupedData[key].count, // ✅ 거래건수
         };
       });
 
@@ -119,13 +118,18 @@ export default function TradeSidebar({ parcelId }) {
         const today = new Date();
         setEndDate(formatDate(today));
 
-        // 면적 목록 구성
+        // 면적 목록 구성 (원본 m² 유지)
         const distinctExclAreas = [
           ...new Set(tradesList.map((trade) => trade.exclArea)),
-        ];
+        ]
+          .filter(
+            (v) => v !== null && v !== undefined && String(v).trim() !== '',
+          )
+          .sort((a, b) => Number(a) - Number(b));
+
         setAvailableExclAreas(distinctExclAreas);
 
-        // 기본 선택 면적: 최신 거래의 면적
+        // 기본 선택 면적: 최신 거래의 면적(m²)
         setSelectedExclArea(tradesList[0]?.exclArea ?? null);
       } catch (e) {
         console.error(`/api/v1/trade/${parcelId} 실패`, e);
@@ -142,7 +146,7 @@ export default function TradeSidebar({ parcelId }) {
   }, [parcelId]);
 
   const handleDateRangeChange = (range) => {
-    +setActiveRange(range);
+    setActiveRange(range);
 
     const today = new Date();
     let newStartDate;
@@ -161,8 +165,8 @@ export default function TradeSidebar({ parcelId }) {
     setEndDate(formatDate(newEndDate));
   };
 
-  const handleExclAreaSelect = (area) => {
-    setSelectedExclArea(area);
+  const handleExclAreaSelect = (areaM2) => {
+    setSelectedExclArea(areaM2);
     setShowExclAreaList(false);
   };
 
@@ -209,24 +213,8 @@ export default function TradeSidebar({ parcelId }) {
     );
   }, [trades, selectedExclArea, startDate, endDate]);
 
-  // ✅ “최근 1개월 평균”도 선택면적 기준으로 계산 (원 단위)
-  const monthlyAvgPrice = useMemo(() => {
-    if (!chartSourceTrades || chartSourceTrades.length === 0) return null;
-    return getMonthlyAverage(chartSourceTrades);
-  }, [chartSourceTrades]);
-
   return (
     <div className='flex-1'>
-      {/* 상단 평균 */}
-      <section className='border-b border-slate-100 px-4 pt-3 pb-4'>
-        <div className='text-[11px] text-slate-400'>
-          최근 실거래 기준 1개월 평균
-        </div>
-        <div className='mt-1 text-xl font-semibold text-[#3fc9ff]'>
-          {monthlyAvgPrice ? formatPrice(monthlyAvgPrice) : '-'}
-        </div>
-      </section>
-
       {/* ✅ 사진처럼: 왼쪽 탭 + 오른쪽 드롭다운 */}
       <div className='mt-3 flex items-center justify-between px-1'>
         {/* 왼쪽: 기간 탭 */}
@@ -271,7 +259,10 @@ export default function TradeSidebar({ parcelId }) {
             onClick={handleExclAreaClick}
             className='flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#3b5cff] shadow-sm hover:bg-slate-50'
           >
-            {selectedExclArea ? `${selectedExclArea}평` : '평수 선택'}
+            {/* ✅ m² -> 평 표시 */}
+            {selectedExclArea != null
+              ? formatPyeongFromM2(selectedExclArea) + '평'
+              : '평수 선택'}
             <svg
               className={`h-4 w-4 transition-transform ${
                 showExclAreaList ? 'rotate-180' : ''
@@ -290,19 +281,20 @@ export default function TradeSidebar({ parcelId }) {
 
           {showExclAreaList && (
             <ul className='absolute right-0 z-10 mt-2 max-h-48 w-32 overflow-auto rounded-md border border-slate-200 bg-white py-1 text-[12px] shadow-lg'>
-              {availableExclAreas.map((area) => (
-                <li key={String(area)}>
+              {availableExclAreas.map((areaM2) => (
+                <li key={String(areaM2)}>
                   <button
                     type='button'
-                    onClick={() => handleExclAreaSelect(area)}
+                    onClick={() => handleExclAreaSelect(areaM2)}
                     className={[
                       'w-full px-3 py-2 text-left hover:bg-slate-50',
-                      area === selectedExclArea
+                      areaM2 === selectedExclArea
                         ? 'font-semibold text-[#3b5cff]'
                         : 'text-slate-700',
                     ].join(' ')}
                   >
-                    {area}평
+                    {/* ✅ 리스트도 평 표시 */}
+                    {formatPyeongFromM2(areaM2) + '평'}
                   </button>
                 </li>
               ))}
@@ -350,14 +342,15 @@ export default function TradeSidebar({ parcelId }) {
                 }
                 className='border-b border-slate-100 text-slate-700'
               >
-                <td className='py-1 text-center text-[14px]'>
+                <td className='py-1 text-left text-[14px]'>
                   {formatDate(trade.dealDate)}
                 </td>
-                <td className='py-1 text-right text-[14px] font-semibold'>
+                <td className='py-1 text-left text-[14px] font-semibold'>
                   {formatPrice(toWonFromMan(trade.dealAmount))}
                 </td>
-                <td className='py-1 text-right text-[14px] font-semibold'>
-                  {trade.exclArea}㎡
+                <td className='py-1 text-left text-[14px] font-semibold'>
+                  {/* ✅ 테이블도 평 표시 */}
+                  {formatPyeongFromM2(trade.exclArea)}
                 </td>
                 <td className='py-1 text-right text-[14px]'>
                   {formatDongFloor(trade.aptDong, trade.floor)}
@@ -394,7 +387,6 @@ export default function TradeSidebar({ parcelId }) {
   );
 }
 
-// 날짜 형식 변환: YYYY-MM-DD
 function formatDate(value) {
   if (!value) return '-';
   const d = new Date(value);
@@ -405,10 +397,6 @@ function formatDate(value) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-/**
- * ✅ formatPrice는 "원 단위" 숫자를 받아서
- * "14억 2,500만" 형태로 출력
- */
 function formatPrice(priceWon) {
   if (priceWon == null) return '-';
   const n = Number(priceWon);
@@ -418,17 +406,23 @@ function formatPrice(priceWon) {
   const man = Math.round((n % 100_000_000) / 10_000);
 
   if (eok > 0) {
-    return man > 0 ? `${eok}억 ${man.toLocaleString()}` : `${eok}억`;
+    return man > 0 ? `${eok}억 ${man.toLocaleString()}만` : `${eok}억`;
   }
-  return `${man.toLocaleString()}`;
+  return `${man.toLocaleString()}만`;
 }
 
 function formatDongFloor(dong, floor) {
-  const dongText = dong ? `${dong}동` : '';
-  const floorText = floor ? `${floor}층` : '';
-  if (dongText && floorText) return `${dongText} / ${floorText}`;
-  if (dongText) return dongText;
-  if (floorText) return floorText;
+  const hasDong =
+    dong !== null && dong !== undefined && String(dong).trim() !== '';
+  const hasFloor =
+    floor !== null && floor !== undefined && String(floor).trim() !== '';
+
+  const dongText = hasDong ? `${String(dong).trim()}동` : '';
+  const floorText = hasFloor ? `${String(floor).trim()}층` : '';
+
+  if (hasDong && hasFloor) return `${dongText} / ${floorText}`;
+  if (hasDong) return dongText;
+  if (hasFloor) return floorText;
   return '-';
 }
 
@@ -454,15 +448,10 @@ function TradePriceChart({ data }) {
           tickFormatter={(v) => `${(v / 100_000_000).toFixed(1)}억`}
           width={40}
         />
-        <Tooltip
-          formatter={(value) => formatPrice(value)}
-          labelFormatter={(label) => {
-            const d = new Date(label);
-            const yy = String(d.getFullYear()).slice(2);
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            return `${yy}-${mm}`;
-          }}
-        />
+
+        {/* ✅ recharts가 active/payload/label을 확실히 주입하도록 함수로 */}
+        <Tooltip content={(props) => <TradeChartTooltip {...props} />} />
+
         <Line
           type='monotone'
           dataKey='avgPrice'
@@ -472,5 +461,35 @@ function TradePriceChart({ data }) {
         />
       </LineChart>
     </ResponsiveContainer>
+  );
+}
+
+function TradeChartTooltip({ active, payload, label }) {
+  if (!active || !payload || payload.length === 0) return null;
+
+  const point = payload[0]?.payload; // { date, avgPrice, count }
+  const d = new Date(label);
+  const yy = String(d.getFullYear()).slice(2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const monthText = `${yy}-${mm}`;
+
+  return (
+    <div className='rounded-md border border-slate-200 bg-white px-3 py-2 text-[12px] shadow-lg'>
+      <div className='font-semibold text-slate-800'>{monthText}</div>
+
+      <div className='mt-1 flex items-center justify-between gap-6'>
+        <span className='text-slate-500'>월 평균</span>
+        <span className='font-semibold text-slate-800'>
+          {formatPrice(point?.avgPrice)}
+        </span>
+      </div>
+
+      <div className='mt-1 flex items-center justify-between gap-6'>
+        <span className='text-slate-500'>거래건수</span>
+        <span className='font-semibold text-slate-800'>
+          {point?.count ?? '-'}건
+        </span>
+      </div>
+    </div>
   );
 }
