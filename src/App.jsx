@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
+import { tokenStore } from './auth/token';
 import axiosInstance from './axiosInstance/AxiosInstance';
 import FilterBar from './components/filters/FilterBar';
 import Header from './components/Header';
@@ -133,6 +134,8 @@ export default function App() {
 
         const list = Array.isArray(res.data) ? res.data : [];
 
+        console.log(list);
+
         const parsed = list.map((item) => ({
           ...item,
           lat: typeof item.lat === 'string' ? parseFloat(item.lat) : item.lat,
@@ -232,6 +235,25 @@ export default function App() {
     };
     if (mapRef.current) fetchMarkers(mapRef.current, defaultFilters);
   };
+
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      if (window.location.pathname !== '/oauth/callback') return;
+
+      try {
+        const { data } = await axiosInstance.post('/auth/access'); // withCredentials=true여야 쿠키 전송됨
+        tokenStore.set(data.accessToken);
+
+        // URL만 /로 바꾸고 리렌더/이동 없이 유지
+        window.history.replaceState({}, '', '/');
+      } catch (e) {
+        console.log('access token issue failed:', e);
+        window.history.replaceState({}, '', '/');
+      }
+    };
+
+    handleOAuthCallback();
+  }, []);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-slate-50 font-['Pretendard',system-ui,sans-serif]">

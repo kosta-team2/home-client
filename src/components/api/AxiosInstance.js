@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { tokenStore } from '../auth/token.js';
+import { tokenStore } from '../../auth/token';
 
 const serverIp = import.meta.env.VITE_API_SERVER_IP;
 
