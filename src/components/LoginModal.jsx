@@ -14,28 +14,28 @@ export default function LoginModal({ open, onClose }) {
       <div className='absolute inset-0 bg-black/40' onClick={onClose} />
 
       <div className='relative w-[520px] max-w-[92vw] rounded-2xl bg-white p-6 shadow-2xl'>
-        <div className='mb-5 text-xl font-bold'>회원가입</div>
+        <div className='mb-5 text-xl font-bold'>로그인</div>
 
         <div className='flex flex-col gap-3'>
           <button
             className='h-14 w-full rounded-2xl bg-[#FEE500] font-semibold'
             onClick={() => go('kakao')}
           >
-            카카오로 시작하기
+            카카오로 로그인하기
           </button>
 
           <button
             className='h-14 w-full rounded-2xl bg-[#03C75A] font-semibold text-white'
             onClick={() => go('naver')}
           >
-            네이버로 시작하기
+            네이버로 로그인하기
           </button>
 
           <button
             className='h-14 w-full rounded-2xl bg-[#4285F4] font-semibold text-white'
             onClick={() => go('google')}
           >
-            구글로 시작하기
+            구글로 로그인하기
           </button>
         </div>
 

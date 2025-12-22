@@ -12,6 +12,7 @@ import {
 } from '../../store/uiSlice';
 
 import DetailSidebar from './detail/DetailSidebar';
+import FavoriteSidebar from './favorite/FavoriteSidebar';
 import RegionNavSidebar from './region/RegionNavSidebar';
 import SearchListSidebar from './SearchListSidebar';
 
@@ -30,20 +31,24 @@ export default function LeftSidebar() {
   useEffect(() => {
     const q = (searchText ?? '').trim();
 
-    // 2) 비면: 요청 X + region-nav 복귀 + 검색결과 초기화
+    if (sidebarMode === 'favorites' || sidebarMode === 'detail') return;
+
     if (!q) {
       if (timerRef.current) clearTimeout(timerRef.current);
       dispatch(setSearchResults([]));
       dispatch(setSearchError(null));
       dispatch(setSearchLoading(false));
-      dispatch(setSidebarMode('region-nav'));
+
+      if (sidebarMode === 'search-list') {
+        dispatch(setSidebarMode('region-nav'));
+      }
       return;
     }
 
-    // 입력 중이면 search-list 모드로
-    dispatch(setSidebarMode('search-list'));
+    if (sidebarMode !== 'search-list') {
+      dispatch(setSidebarMode('search-list'));
+    }
 
-    // 1) 입력 바뀔 때마다 자동검색 (debounce)
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       try {
@@ -67,11 +72,13 @@ export default function LeftSidebar() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [searchText, dispatch]);
+  }, [searchText, sidebarMode, dispatch]);
+
+  const showSearchBar = sidebarMode !== 'detail' && sidebarMode !== 'favorites'; // ✅ favorites에서는 검색바 숨김
 
   return (
     <aside className='flex w-[430px] max-w-[450px] flex-col border-r border-slate-100 bg-white'>
-      {sidebarMode !== 'detail' && (
+      {showSearchBar && (
         <div className='border-b border-slate-100 p-4'>
           <div className='flex items-center gap-2 rounded-2xl border border-sky-400 bg-white/80 px-3 py-2 shadow-sm'>
             <svg
@@ -98,15 +105,20 @@ export default function LeftSidebar() {
           </div>
 
           <p className='mt-2 text-[11px] text-slate-400'>
-            * 기본은 지역 선택, 검색 시 단지명/동 이름으로 빠르게 이동할 수
-            있어요.
+            단지명/동 이름으로 검색 시 빠르게 이동할 수 있습니다.
           </p>
         </div>
       )}
 
       <div className='flex-1 overflow-y-auto'>
-        <RegionNavSidebar active={sidebarMode === 'region-nav'} />
+        {sidebarMode === 'region-nav' && <RegionNavSidebar active />}
         {sidebarMode === 'search-list' && <SearchListSidebar />}
+
+        {sidebarMode === 'favorites' && (
+          <FavoriteSidebar
+            onBack={() => dispatch(setSidebarMode('region-nav'))}
+          />
+        )}
 
         {sidebarMode === 'detail' && selectedParcelId && (
           <DetailSidebar
