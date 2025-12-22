@@ -1,9 +1,12 @@
 export default function RegionGrid({ items, selectedId, onSelect }) {
+  // ✅ 방어: items가 배열이 아니면 빈 배열로 강제
+  const safeItems = Array.isArray(items) ? items : [];
+
   return (
     <div className='mt-3 grid grid-cols-3 gap-2'>
-      {items.map((item) => {
+      {safeItems.map((item) => {
         const isActive = selectedId === item.id;
-        const [firstLine, ...rest] = item.name.split(' ');
+        const [firstLine, ...rest] = (item?.name ?? '').split(' ');
         const secondLine = rest.join(' ');
 
         return (
