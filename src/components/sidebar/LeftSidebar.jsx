@@ -105,8 +105,7 @@ export default function LeftSidebar() {
           </div>
 
           <p className='mt-2 text-[11px] text-slate-400'>
-            * 기본은 지역 선택, 검색 시 단지명/동 이름으로 빠르게 이동할 수
-            있어요.
+            단지명/동 이름으로 검색 시 빠르게 이동할 수 있습니다.
           </p>
         </div>
       )}

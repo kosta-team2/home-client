@@ -23,7 +23,6 @@ export default function FavoriteSidebar({ onBack }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState(null);
 
-  // ✅ 토스트
   const [toast, setToast] = useState({ open: false, msg: '' });
   const showToast = (msg) => setToast({ open: true, msg });
 
@@ -64,7 +63,11 @@ export default function FavoriteSidebar({ onBack }) {
       const next = await updateFavoriteAlarm(f.id, nextEnabled);
       setItems((prev) => prev.map((x) => (x.id === f.id ? next : x)));
 
-      showToast(nextEnabled ? '알람을 켰습니다.' : '알람을 껐습니다.');
+      showToast(
+        nextEnabled
+          ? '해당 지역 실거래가 알람을 받습니다.'
+          : '해당 지역 실거래가 알람을 껐습니다.',
+      );
     } catch (e) {
       console.log(e);
       alert('알람 설정 변경에 실패했습니다.');
@@ -72,7 +75,7 @@ export default function FavoriteSidebar({ onBack }) {
   };
 
   const handleDelete = async (f) => {
-    const ok = window.confirm('관심지역에서 삭제할까요?');
+    const ok = window.confirm('관심지역에서 삭제하시겠습니까?');
     if (!ok) return;
 
     try {
@@ -105,8 +108,8 @@ export default function FavoriteSidebar({ onBack }) {
         </button>
 
         <div className='flex flex-1 flex-col items-center px-2'>
-          <div className='text-[11px] opacity-80'>관심지역</div>
-          <div className='mt-0.5 text-sm font-semibold'>목록 {countLabel}</div>
+          <div className='mt-0.5 text-sm font-semibold'>관심지역</div>
+          <div className='text-[11px] opacity-80'>목록 {countLabel}</div>
         </div>
 
         <div className='w-6' />
@@ -114,7 +117,9 @@ export default function FavoriteSidebar({ onBack }) {
 
       <div className='flex-1 overflow-y-auto px-4 py-4'>
         {loading && (
-          <p className='text-[12px] text-slate-400'>불러오는 중...</p>
+          <p className='text-[12px] text-slate-400'>
+            내 관심 지역 불러오는 중...
+          </p>
         )}
         {err && <p className='mb-2 text-[12px] text-red-500'>{err}</p>}
 
