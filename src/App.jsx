@@ -154,6 +154,16 @@ export default function App() {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const tPaint = performance.now();
+            const apiMs = tApi - t0;
+            const uiMs = tPaint - t0;
+
+            console.log('%c[MAP PERF]', 'color:#2563eb;font-weight:bold', {
+              endpoint: url,
+              level,
+              count: parsed.length,
+              apiMs: `${apiMs.toFixed(1)} ms`,
+              uiMs: `${uiMs.toFixed(1)} ms`,
+            });
             setTiming({
               apiMs: tApi - t0,
               uiMs: tPaint - t0,
