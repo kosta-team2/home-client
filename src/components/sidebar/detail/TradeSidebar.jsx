@@ -1,12 +1,18 @@
 import axiosInstance from '@axios/AxiosInstance';
-import { useEffect, useMemo, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
-  ResponsiveContainer,
-  LineChart,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
 } from 'recharts';
 
 /**
@@ -38,6 +44,57 @@ function formatPyeongFromM2(m2) {
   return `${text}`;
 }
 
+function formatDate(value) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatPrice(priceWon) {
+  if (priceWon == null) return '-';
+  const n = Number(priceWon);
+  if (!Number.isFinite(n)) return '-';
+
+  const eok = Math.floor(n / 100_000_000);
+  const man = Math.round((n % 100_000_000) / 10_000);
+
+  if (eok > 0) {
+    return man > 0 ? `${eok}억 ${man.toLocaleString()}만` : `${eok}억`;
+  }
+  return `${man.toLocaleString()}만`;
+}
+
+function formatDongFloor(dong, floor) {
+  const hasDong =
+    dong !== null && dong !== undefined && String(dong).trim() !== '';
+  const hasFloor =
+    floor !== null && floor !== undefined && String(floor).trim() !== '';
+
+  const dongText = hasDong ? `${String(dong).trim()}동` : '';
+  const floorText = hasFloor ? `${String(floor).trim()}층` : '';
+
+  if (hasDong && hasFloor) return `${dongText} / ${floorText}`;
+  if (hasDong) return dongText;
+  if (hasFloor) return floorText;
+  return '-';
+}
+
+function getScrollParent(el) {
+  if (!el) return null;
+  let parent = el.parentElement;
+  while (parent) {
+    const style = window.getComputedStyle(parent);
+    const oy = style.overflowY;
+    if (oy === 'auto' || oy === 'scroll') return parent;
+    parent = parent.parentElement;
+  }
+  return window; // fallback
+}
+
 export default function TradeSidebar({ parcelId }) {
   const [trades, setTrades] = useState([]); // 거래 목록(원본)
   const [loadingTrades, setLoadingTrades] = useState(false);
@@ -51,9 +108,15 @@ export default function TradeSidebar({ parcelId }) {
   const [showExclAreaList, setShowExclAreaList] = useState(false); // 면적 리스트 토글
   const [activeRange, setActiveRange] = useState('last3years'); // 'last3years' | 'all'
 
-  // ✅ 월별 평균 차트 데이터 생성 (YY-MM 표시, 내부 date는 Date)
-  // ✅ avgPrice는 "원" 단위로 만든다.
-  // ✅ count 포함(tooltip에서 거래건수 표시)
+  // ✅ "처음 10개만" + "더보기" 상태
+  const INITIAL_TRADE_LIMIT = 10;
+  const [showAllTrades, setShowAllTrades] = useState(false);
+
+  // ✅ 더보기 버튼 위치 기준 스크롤 유지(보정)용
+  const moreBtnRef = useRef(null);
+  const scrollAnchorRef = useRef(null);
+
+  // ✅ dealAmount를 원단위로 만들고 월별 평균 데이터 생성 + 거래건수
   const processChartData = (tradesList) => {
     const groupedData = {};
 
@@ -61,16 +124,10 @@ export default function TradeSidebar({ parcelId }) {
       const date = new Date(trade.dealDate);
       if (Number.isNaN(date.getTime())) return;
 
-      const monthKey = `${date.getFullYear()}-${String(
-        date.getMonth() + 1,
-      ).padStart(2, '0')}`;
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
       if (!groupedData[monthKey]) {
-        groupedData[monthKey] = {
-          month: monthKey,
-          totalPriceWon: 0,
-          count: 0,
-        };
+        groupedData[monthKey] = { month: monthKey, totalPriceWon: 0, count: 0 };
       }
 
       groupedData[monthKey].totalPriceWon +=
@@ -78,19 +135,17 @@ export default function TradeSidebar({ parcelId }) {
       groupedData[monthKey].count += 1;
     });
 
-    const aggregatedData = Object.keys(groupedData)
-      .sort() // 오래된 달 -> 최신 달
+    return Object.keys(groupedData)
+      .sort()
       .map((key) => {
         const [yyyy, mm] = key.split('-');
         const d = new Date(Number(yyyy), Number(mm) - 1, 1);
         return {
-          date: d, // X축 date
-          avgPrice: groupedData[key].totalPriceWon / groupedData[key].count, // ✅ 원 단위
-          count: groupedData[key].count, // ✅ 거래건수
+          date: d,
+          avgPrice: groupedData[key].totalPriceWon / groupedData[key].count,
+          count: groupedData[key].count,
         };
       });
-
-    return aggregatedData;
   };
 
   useEffect(() => {
@@ -106,6 +161,10 @@ export default function TradeSidebar({ parcelId }) {
         setAvailableExclAreas([]);
         setSelectedExclArea(null);
         setShowExclAreaList(false);
+
+        // ✅ 더보기 상태도 초기화
+        setShowAllTrades(false);
+        scrollAnchorRef.current = null;
 
         const res = await axiosInstance.get(`/api/v1/trade/${parcelId}`);
         const data = res.data || {};
@@ -144,6 +203,33 @@ export default function TradeSidebar({ parcelId }) {
 
     fetchTrades();
   }, [parcelId]);
+
+  useEffect(() => {
+    setShowAllTrades(false);
+    scrollAnchorRef.current = null;
+  }, [parcelId, selectedExclArea, activeRange, startDate, endDate]);
+
+  useLayoutEffect(() => {
+    const anchor = scrollAnchorRef.current;
+    if (!anchor || !moreBtnRef.current) return;
+
+    const { scrollParent, prevOffset } = anchor;
+
+    const btn = moreBtnRef.current;
+
+    if (scrollParent === window) {
+      const nextOffset = btn.getBoundingClientRect().top; // viewport 기준
+      const delta = nextOffset - prevOffset;
+      if (delta !== 0) window.scrollBy(0, delta);
+    } else if (scrollParent && scrollParent.getBoundingClientRect) {
+      const parentRect = scrollParent.getBoundingClientRect();
+      const nextOffset = btn.getBoundingClientRect().top - parentRect.top;
+      const delta = nextOffset - prevOffset;
+      if (delta !== 0) scrollParent.scrollTop += delta;
+    }
+
+    scrollAnchorRef.current = null;
+  }, [showAllTrades]);
 
   const handleDateRangeChange = (range) => {
     setActiveRange(range);
@@ -213,6 +299,35 @@ export default function TradeSidebar({ parcelId }) {
     );
   }, [trades, selectedExclArea, startDate, endDate]);
 
+  const visibleTrades = useMemo(() => {
+    if (!filteredTrades || filteredTrades.length === 0) return [];
+    return showAllTrades
+      ? filteredTrades
+      : filteredTrades.slice(0, INITIAL_TRADE_LIMIT);
+  }, [filteredTrades, showAllTrades]);
+
+  const handleToggleMore = () => {
+    const btn = moreBtnRef.current;
+    if (btn) {
+      const scrollParent = getScrollParent(btn);
+
+      if (scrollParent === window) {
+        scrollAnchorRef.current = {
+          scrollParent,
+          prevOffset: btn.getBoundingClientRect().top,
+        };
+      } else if (scrollParent && scrollParent.getBoundingClientRect) {
+        const parentRect = scrollParent.getBoundingClientRect();
+        scrollAnchorRef.current = {
+          scrollParent,
+          prevOffset: btn.getBoundingClientRect().top - parentRect.top,
+        };
+      }
+    }
+
+    setShowAllTrades((p) => !p);
+  };
+
   return (
     <div className='flex-1'>
       {/* ✅ 사진처럼: 왼쪽 탭 + 오른쪽 드롭다운 */}
@@ -259,14 +374,11 @@ export default function TradeSidebar({ parcelId }) {
             onClick={handleExclAreaClick}
             className='flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#3b5cff] shadow-sm hover:bg-slate-50'
           >
-            {/* ✅ m² -> 평 표시 */}
             {selectedExclArea != null
               ? formatPyeongFromM2(selectedExclArea) + '평'
               : '평수 선택'}
             <svg
-              className={`h-4 w-4 transition-transform ${
-                showExclAreaList ? 'rotate-180' : ''
-              }`}
+              className={`h-4 w-4 transition-transform ${showExclAreaList ? 'rotate-180' : ''}`}
               viewBox='0 0 20 20'
               fill='currentColor'
               aria-hidden='true'
@@ -293,7 +405,6 @@ export default function TradeSidebar({ parcelId }) {
                         : 'text-slate-700',
                     ].join(' ')}
                   >
-                    {/* ✅ 리스트도 평 표시 */}
                     {formatPyeongFromM2(areaM2) + '평'}
                   </button>
                 </li>
@@ -333,8 +444,9 @@ export default function TradeSidebar({ parcelId }) {
               <th className='py-1 text-center text-[14px]'>동 / 층</th>
             </tr>
           </thead>
+
           <tbody>
-            {filteredTrades.map((trade, idx) => (
+            {visibleTrades.map((trade, idx) => (
               <tr
                 key={
                   trade.id ??
@@ -349,7 +461,6 @@ export default function TradeSidebar({ parcelId }) {
                   {formatPrice(toWonFromMan(trade.dealAmount))}
                 </td>
                 <td className='py-1 text-left text-[14px] font-semibold'>
-                  {/* ✅ 테이블도 평 표시 */}
                   {formatPyeongFromM2(trade.exclArea)}
                 </td>
                 <td className='py-1 text-right text-[14px]'>
@@ -382,48 +493,27 @@ export default function TradeSidebar({ parcelId }) {
             )}
           </tbody>
         </table>
+
+        {/* ✅ 더보기/접기 (버튼 ref로 scroll anchoring) */}
+        {!loadingTrades &&
+          !tradeError &&
+          filteredTrades.length > INITIAL_TRADE_LIMIT && (
+            <div className='mt-3 flex justify-center'>
+              <button
+                ref={moreBtnRef}
+                type='button'
+                onClick={handleToggleMore}
+                className='rounded-full border border-slate-200 bg-white px-4 py-2 text-[12px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50'
+              >
+                {showAllTrades
+                  ? '접기'
+                  : `더보기 (+${filteredTrades.length - INITIAL_TRADE_LIMIT}개)`}
+              </button>
+            </div>
+          )}
       </section>
     </div>
   );
-}
-
-function formatDate(value) {
-  if (!value) return '-';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function formatPrice(priceWon) {
-  if (priceWon == null) return '-';
-  const n = Number(priceWon);
-  if (!Number.isFinite(n)) return '-';
-
-  const eok = Math.floor(n / 100_000_000);
-  const man = Math.round((n % 100_000_000) / 10_000);
-
-  if (eok > 0) {
-    return man > 0 ? `${eok}억 ${man.toLocaleString()}만` : `${eok}억`;
-  }
-  return `${man.toLocaleString()}만`;
-}
-
-function formatDongFloor(dong, floor) {
-  const hasDong =
-    dong !== null && dong !== undefined && String(dong).trim() !== '';
-  const hasFloor =
-    floor !== null && floor !== undefined && String(floor).trim() !== '';
-
-  const dongText = hasDong ? `${String(dong).trim()}동` : '';
-  const floorText = hasFloor ? `${String(floor).trim()}층` : '';
-
-  if (hasDong && hasFloor) return `${dongText} / ${floorText}`;
-  if (hasDong) return dongText;
-  if (hasFloor) return floorText;
-  return '-';
 }
 
 function TradePriceChart({ data }) {
@@ -449,7 +539,6 @@ function TradePriceChart({ data }) {
           width={40}
         />
 
-        {/* ✅ recharts가 active/payload/label을 확실히 주입하도록 함수로 */}
         <Tooltip content={(props) => <TradeChartTooltip {...props} />} />
 
         <Line
