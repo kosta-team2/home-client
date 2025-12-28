@@ -27,7 +27,13 @@ export default function RegionMarkers({ markers }) {
   return (
     <>
       {markers.map((m) => {
-        const bgColor = '#0284c7';
+        const bgColor = // trend (back에서 dto에 trend, change 받아오는걸로 조정...?)
+          m.trend === 'up'
+            ? '#0284c7'
+            : m.trend === 'down'
+              ? '#f43f5e'
+              : '#fbbf24';
+
         const isHovered = hoveredId === m.id;
 
         const zIndex = isHovered ? 9999 : 1;
