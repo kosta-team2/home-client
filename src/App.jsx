@@ -7,6 +7,7 @@ import FilterBar from './components/filters/FilterBar';
 import Header from './components/Header';
 import ComplexMarkers from './components/map/ComplexMarkers';
 import KakaoMap from './components/map/KakaoMap';
+import LegendBox from './components/map/LegendBox';
 import RegionMarkers from './components/map/RegionMarkers';
 import LeftSidebar from './components/sidebar/LeftSidebar';
 import { FILTER_DEFAULTS, setFilterRange, resetFilters } from './store/uiSlice';
@@ -105,8 +106,6 @@ export default function App() {
         const res = await axiosInstance.post(url, payload);
         const list = Array.isArray(res.data) ? res.data : [];
 
-        console.log(list);
-
         const parsed = list.map((item) => ({
           ...item,
           lat: typeof item.lat === 'string' ? parseFloat(item.lat) : item.lat,
@@ -146,6 +145,7 @@ export default function App() {
   );
 
   const isComplexLevel = mapLevel <= 4;
+  const showLegend = !isComplexLevel;
 
   const handleCommitRange = (key, range) => {
     const nextFilters = {
@@ -155,7 +155,6 @@ export default function App() {
 
     dispatch(setFilterRange({ key, value: range }));
 
-    // 현재 맵 기준으로 즉시 1회 갱신
     if (mapRef.current) fetchMarkers(mapRef.current, nextFilters);
   };
 
@@ -163,7 +162,6 @@ export default function App() {
     dispatch(resetFilters());
     setOpenFilterKey(null);
 
-    // reset 직후 즉시 갱신
     const defaultFilters = {
       unit: FILTER_DEFAULTS.unit,
       pyeong: FILTER_DEFAULTS.pyeong,
@@ -178,10 +176,8 @@ export default function App() {
       if (window.location.pathname !== '/oauth/callback') return;
 
       try {
-        const { data } = await axiosInstance.post('/auth/access'); // withCredentials=true여야 쿠키 전송됨
+        const { data } = await axiosInstance.post('/auth/access');
         tokenStore.set(data.accessToken);
-
-        // URL만 /로 바꾸고 리렌더/이동 없이 유지
         window.history.replaceState({}, '', '/');
       } catch (e) {
         console.log('access token issue failed:', e);
@@ -222,6 +218,8 @@ export default function App() {
                   <RegionMarkers markers={regionMarkers} />
                 )}
               </KakaoMap>
+
+              {showLegend && <LegendBox />}
             </div>
           </div>
         </section>

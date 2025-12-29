@@ -1,12 +1,12 @@
 import axiosInstance from '@axios/AxiosInstance';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ResponsiveContainer,
-  LineChart,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
 } from 'recharts';
 
 /**
@@ -38,6 +38,8 @@ function formatPyeongFromM2(m2) {
   return `${text}`;
 }
 
+const INITIAL_TRADE_LIMIT = 10;
+
 export default function TradeSidebar({ parcelId }) {
   const [trades, setTrades] = useState([]); // 거래 목록(원본)
   const [loadingTrades, setLoadingTrades] = useState(false);
@@ -51,6 +53,28 @@ export default function TradeSidebar({ parcelId }) {
   const [showExclAreaList, setShowExclAreaList] = useState(false); // 면적 리스트 토글
   const [activeRange, setActiveRange] = useState('last3years'); // 'last3years' | 'all'
 
+  // ✅ 더보기/접기
+  const [showAllTrades, setShowAllTrades] = useState(false);
+  const moreBtnRef = useRef(null);
+
+  const handleToggleMore = () => {
+    setShowAllTrades((prev) => {
+      const next = !prev;
+
+      // ✅ 펼칠 때 버튼이 보이도록 살짝 보정(원치 않으면 삭제 가능)
+      if (!prev) {
+        setTimeout(() => {
+          moreBtnRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        }, 0);
+      }
+
+      return next;
+    });
+  };
+
   // ✅ 월별 평균 차트 데이터 생성 (YY-MM 표시, 내부 date는 Date)
   // ✅ avgPrice는 "원" 단위로 만든다.
   // ✅ count 포함(tooltip에서 거래건수 표시)
@@ -61,13 +85,10 @@ export default function TradeSidebar({ parcelId }) {
       const date = new Date(trade.dealDate);
       if (Number.isNaN(date.getTime())) return;
 
-      const monthKey = `${date.getFullYear()}-${String(
-        date.getMonth() + 1,
-      ).padStart(2, '0')}`;
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
       if (!groupedData[monthKey]) {
         groupedData[monthKey] = {
-          month: monthKey,
           totalPriceWon: 0,
           count: 0,
         };
@@ -107,6 +128,9 @@ export default function TradeSidebar({ parcelId }) {
         setSelectedExclArea(null);
         setShowExclAreaList(false);
 
+        // ✅ 더보기 상태도 초기화
+        setShowAllTrades(false);
+
         const res = await axiosInstance.get(`/api/v1/trade/${parcelId}`);
         const data = res.data || {};
 
@@ -117,6 +141,12 @@ export default function TradeSidebar({ parcelId }) {
         // 종료일은 오늘로 고정 세팅
         const today = new Date();
         setEndDate(formatDate(today));
+
+        // ✅ 기본은 "최근 3년"이므로 startDate도 여기서 강제로 잡아준다
+        const s = new Date(today);
+        s.setFullYear(today.getFullYear() - 3);
+        setStartDate(formatDate(s));
+        setActiveRange('last3years');
 
         // 면적 목록 구성 (원본 m² 유지)
         const distinctExclAreas = [
@@ -144,6 +174,11 @@ export default function TradeSidebar({ parcelId }) {
 
     fetchTrades();
   }, [parcelId]);
+
+  // ✅ 평수/기간 바뀌면 접기(원하지 않으면 이 effect 삭제해도 됨)
+  useEffect(() => {
+    setShowAllTrades(false);
+  }, [selectedExclArea, startDate, endDate]);
 
   const handleDateRangeChange = (range) => {
     setActiveRange(range);
@@ -182,9 +217,10 @@ export default function TradeSidebar({ parcelId }) {
   }, [trades, selectedExclArea]);
 
   // ✅ 선택 면적 기준 월별 평균 차트 생성 (원 단위 avgPrice)
-  const tradeChartAll = useMemo(() => {
-    return processChartData(chartSourceTrades);
-  }, [chartSourceTrades]);
+  const tradeChartAll = useMemo(
+    () => processChartData(chartSourceTrades),
+    [chartSourceTrades],
+  );
 
   // ✅ 차트는 기간 필터 적용
   const filteredChartData = useMemo(() => {
@@ -212,6 +248,12 @@ export default function TradeSidebar({ parcelId }) {
         new Date(trade.dealDate) <= e,
     );
   }, [trades, selectedExclArea, startDate, endDate]);
+
+  // ✅ 더보기/접기 적용된 실제 렌더 리스트
+  const visibleTrades = useMemo(() => {
+    if (showAllTrades) return filteredTrades;
+    return filteredTrades.slice(0, INITIAL_TRADE_LIMIT);
+  }, [filteredTrades, showAllTrades]);
 
   return (
     <div className='flex-1'>
@@ -259,14 +301,11 @@ export default function TradeSidebar({ parcelId }) {
             onClick={handleExclAreaClick}
             className='flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#3b5cff] shadow-sm hover:bg-slate-50'
           >
-            {/* ✅ m² -> 평 표시 */}
             {selectedExclArea != null
-              ? formatPyeongFromM2(selectedExclArea) + '평'
+              ? `${formatPyeongFromM2(selectedExclArea)}평`
               : '평수 선택'}
             <svg
-              className={`h-4 w-4 transition-transform ${
-                showExclAreaList ? 'rotate-180' : ''
-              }`}
+              className={`h-4 w-4 transition-transform ${showExclAreaList ? 'rotate-180' : ''}`}
               viewBox='0 0 20 20'
               fill='currentColor'
               aria-hidden='true'
@@ -293,8 +332,7 @@ export default function TradeSidebar({ parcelId }) {
                         : 'text-slate-700',
                     ].join(' ')}
                   >
-                    {/* ✅ 리스트도 평 표시 */}
-                    {formatPyeongFromM2(areaM2) + '평'}
+                    {formatPyeongFromM2(areaM2)}평
                   </button>
                 </li>
               ))}
@@ -333,8 +371,9 @@ export default function TradeSidebar({ parcelId }) {
               <th className='py-1 text-center text-[14px]'>동 / 층</th>
             </tr>
           </thead>
+
           <tbody>
-            {filteredTrades.map((trade, idx) => (
+            {visibleTrades.map((trade, idx) => (
               <tr
                 key={
                   trade.id ??
@@ -349,7 +388,6 @@ export default function TradeSidebar({ parcelId }) {
                   {formatPrice(toWonFromMan(trade.dealAmount))}
                 </td>
                 <td className='py-1 text-left text-[14px] font-semibold'>
-                  {/* ✅ 테이블도 평 표시 */}
                   {formatPyeongFromM2(trade.exclArea)}
                 </td>
                 <td className='py-1 text-right text-[14px]'>
@@ -382,6 +420,24 @@ export default function TradeSidebar({ parcelId }) {
             )}
           </tbody>
         </table>
+
+        {/* ✅ 더보기 / 접기 (네가 준 UI 그대로 유지) */}
+        {!loadingTrades &&
+          !tradeError &&
+          filteredTrades.length > INITIAL_TRADE_LIMIT && (
+            <div className='mt-3 flex justify-center'>
+              <button
+                ref={moreBtnRef}
+                type='button'
+                onClick={handleToggleMore}
+                className='rounded-full border border-slate-200 bg-white px-4 py-2 text-[12px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50'
+              >
+                {showAllTrades
+                  ? '접기'
+                  : `더보기 (+${filteredTrades.length - INITIAL_TRADE_LIMIT}개)`}
+              </button>
+            </div>
+          )}
       </section>
     </div>
   );
@@ -405,9 +461,8 @@ function formatPrice(priceWon) {
   const eok = Math.floor(n / 100_000_000);
   const man = Math.round((n % 100_000_000) / 10_000);
 
-  if (eok > 0) {
+  if (eok > 0)
     return man > 0 ? `${eok}억 ${man.toLocaleString()}만` : `${eok}억`;
-  }
   return `${man.toLocaleString()}만`;
 }
 
@@ -448,10 +503,7 @@ function TradePriceChart({ data }) {
           tickFormatter={(v) => `${(v / 100_000_000).toFixed(1)}억`}
           width={40}
         />
-
-        {/* ✅ recharts가 active/payload/label을 확실히 주입하도록 함수로 */}
         <Tooltip content={(props) => <TradeChartTooltip {...props} />} />
-
         <Line
           type='monotone'
           dataKey='avgPrice'
