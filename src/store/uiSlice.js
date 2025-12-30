@@ -25,11 +25,11 @@ const uiSlice = createSlice({
     mapCenter: initialCenter,
     mapLevel: 10,
     aggregatedMarkers: [],
-    sidebarMode: 'region-nav',
+    sidebarMode: 'region-nav', // 'region-nav' | 'search-list' | 'detail' | 'favorites' | 'top-charts'
     previousSidebarMode: null,
     selectedParcelId: null,
-    regionMarkers: [], // 시/도, 시/군/구, 읍/면/동 집계용
-    complexMarkers: [], // 단지 상세용
+    regionMarkers: [],
+    complexMarkers: [],
     searchResults: [],
     searchLoading: false,
     searchError: null,
@@ -74,16 +74,14 @@ const uiSlice = createSlice({
       state.showNotifications = !state.showNotifications;
     },
     setMapCenter(state, action) {
-      state.mapCenter = action.payload; // { lat, lng }
+      state.mapCenter = action.payload;
     },
     setMapLevel(state, action) {
-      state.mapLevel = action.payload; // number
+      state.mapLevel = action.payload;
     },
-
     setRegionMarkers(state, action) {
       state.regionMarkers = action.payload;
     },
-
     setComplexMarkers(state, action) {
       state.complexMarkers = action.payload;
     },
@@ -94,8 +92,7 @@ const uiSlice = createSlice({
       state.selectedParcelId = action.payload;
     },
     openDetailFrom(state, action) {
-      // 마커나, 검색으로 상세페이지로 이동 시
-      state.previousSidebarMode = action.payload; // 'region-nav' | 'search-list'
+      state.previousSidebarMode = action.payload;
       state.sidebarMode = 'detail';
     },
     goBackFromDetail(state) {
@@ -116,7 +113,7 @@ const uiSlice = createSlice({
       state.searchError = action.payload;
     },
     setFilterRange(state, action) {
-      const { key, value } = action.payload; // value: [min,max]
+      const { key, value } = action.payload;
       state.filters[key] = value;
     },
   },

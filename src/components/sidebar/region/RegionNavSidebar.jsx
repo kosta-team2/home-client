@@ -23,11 +23,11 @@ export default function RegionNavSidebar({ active = true }) {
   const toKakaoLevel = (zoomStep) => {
     switch (zoomStep) {
       case 0:
-        return 9; // 시도
+        return 7; // 시도
       case 1:
-        return 6; // 시군구
+        return 4; // 시군구
       case 2:
-        return 4; // 읍면동
+        return 3; // 읍면동
       default:
         return 10;
     }
