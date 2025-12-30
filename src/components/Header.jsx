@@ -1,7 +1,8 @@
-import { Bell, Heart } from 'lucide-react';
+import { Bell, Heart, BarChart3 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
+import HomeSearchLogo from '../assets/home_search_logo.svg';
 import { tokenStore } from '../auth/token';
 import { fetchMeMini } from '../components/api/userApi';
 import { NOTIFICATIONS } from '../data/mockData';
@@ -66,59 +67,31 @@ export default function Header() {
     <header className='border-b border-slate-200 bg-gradient-to-r from-sky-50 via-white to-sky-100'>
       <div className='flex items-center justify-between px-8 py-3'>
         <div className='flex items-center gap-3'>
-          <div className='flex h-9 w-9 items-center justify-center rounded-xl border border-sky-100 bg-white shadow-sm'>
-            <svg
-              className='h-6 w-6'
-              viewBox='0 0 24 24'
-              fill='none'
-              xmlns='http://www.w3.org/2000/svg'
-            >
-              <defs>
-                <linearGradient
-                  id='homeSearchGrad'
-                  x1='3'
-                  y1='3'
-                  x2='21'
-                  y2='21'
-                >
-                  <stop stopColor='#6EC6FF' />
-                  <stop offset='1' stopColor='#3A8DFF' />
-                </linearGradient>
-              </defs>
-              <path
-                d='M3 10L12 3L21 10V20C21 20.55 20.55 21 20 21H4C3.45 21 3 20.55 3 20V10Z'
-                stroke='url(#homeSearchGrad)'
-                strokeWidth='2'
-                strokeLinejoin='round'
-              />
-              <circle
-                cx='12'
-                cy='14'
-                r='3'
-                stroke='url(#homeSearchGrad)'
-                strokeWidth='2'
-              />
-              <line
-                x1='14.5'
-                y1='16.5'
-                x2='17'
-                y2='19'
-                stroke='url(#homeSearchGrad)'
-                strokeWidth='2'
-                strokeLinecap='round'
-              />
-            </svg>
+          <div className='flex h-11 w-11 items-center justify-center rounded-xl border border-sky-100 bg-white shadow-sm'>
+            <img
+              src={HomeSearchLogo}
+              alt='홈서치 로고'
+              className='h-9 w-9 object-contain'
+              draggable={false}
+            />
           </div>
 
           <div className='leading-tight'>
             <div className='text-lg font-semibold tracking-tight'>홈서치</div>
-            <div className='text-[11px] text-slate-500'>
-              HomeSearch · 실거래가 인사이트
-            </div>
+            <div className='text-[11px] text-slate-500'>실거래가 인사이트</div>
           </div>
         </div>
 
         <div className='relative flex items-center gap-4'>
+          <button
+            type='button'
+            onClick={() => dispatch(setSidebarMode('top-charts'))}
+            className='text-slate-500 hover:text-sky-600'
+            title='TOP 차트'
+          >
+            <BarChart3 className='h-5 w-5' />
+          </button>
+
           {isLoggedIn && (
             <button
               type='button'
