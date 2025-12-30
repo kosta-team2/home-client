@@ -15,6 +15,7 @@ import DetailSidebar from './detail/DetailSidebar';
 import FavoriteSidebar from './favorite/FavoriteSidebar';
 import RegionNavSidebar from './region/RegionNavSidebar';
 import SearchListSidebar from './SearchListSidebar';
+import TopChartSidebar from './topcharts/TopChartSidebar';
 
 export default function LeftSidebar() {
   const dispatch = useDispatch();
@@ -31,7 +32,13 @@ export default function LeftSidebar() {
   useEffect(() => {
     const q = (searchText ?? '').trim();
 
-    if (sidebarMode === 'favorites' || sidebarMode === 'detail') return;
+    if (
+      sidebarMode === 'favorites' ||
+      sidebarMode === 'detail' ||
+      sidebarMode === 'top-charts'
+    ) {
+      return;
+    }
 
     if (!q) {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -74,7 +81,10 @@ export default function LeftSidebar() {
     };
   }, [searchText, sidebarMode, dispatch]);
 
-  const showSearchBar = sidebarMode !== 'detail' && sidebarMode !== 'favorites'; // ✅ favorites에서는 검색바 숨김
+  const showSearchBar =
+    sidebarMode !== 'detail' &&
+    sidebarMode !== 'favorites' &&
+    sidebarMode !== 'top-charts';
 
   return (
     <aside className='flex w-[430px] max-w-[450px] flex-col border-r border-slate-100 bg-white'>
@@ -116,6 +126,12 @@ export default function LeftSidebar() {
 
         {sidebarMode === 'favorites' && (
           <FavoriteSidebar
+            onBack={() => dispatch(setSidebarMode('region-nav'))}
+          />
+        )}
+
+        {sidebarMode === 'top-charts' && (
+          <TopChartSidebar
             onBack={() => dispatch(setSidebarMode('region-nav'))}
           />
         )}
