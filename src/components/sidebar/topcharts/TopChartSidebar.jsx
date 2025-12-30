@@ -15,12 +15,48 @@ function formatPrice(priceWon) {
   const n = Number(priceWon);
   if (!Number.isFinite(n)) return '-';
 
+  // NOTE: 기존 로직 유지 (priceWon이 만원단위라고 가정)
   const eok = Math.floor(n / 1_0000);
   const man = Math.round((n % 10_000) / 10_000);
 
   if (eok > 0)
     return man > 0 ? `${eok}억 ${man.toLocaleString()}만` : `${eok}억`;
   return `${man.toLocaleString()}만`;
+}
+
+function RowItemButton({ onClick, title, left, center, right }) {
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      className={[
+        'w-full',
+        'rounded-2xl border border-slate-100 bg-white',
+        'px-4 py-4',
+        'shadow-sm',
+        'hover:border-sky-200 hover:bg-sky-50/30',
+        'min-h-[64px]',
+      ].join(' ')}
+      title={title}
+    >
+      <div className='grid grid-cols-[56px_1fr_96px] items-center gap-3'>
+        {/* LEFT */}
+        <div className='text-left text-[13px] font-semibold text-slate-700'>
+          {left}
+        </div>
+
+        {/* CENTER */}
+        <div className='truncate text-center text-[14px] font-semibold text-slate-800'>
+          {center}
+        </div>
+
+        {/* RIGHT */}
+        <div className='text-right text-[13px] font-semibold whitespace-nowrap text-slate-800'>
+          {right}
+        </div>
+      </div>
+    </button>
+  );
 }
 
 export default function TopChartSidebar({ onBack }) {
@@ -175,19 +211,18 @@ export default function TopChartSidebar({ onBack }) {
                 데이터가 없습니다.
               </div>
             ) : (
-              topPrice.slice(0, 10).map((x) => (
-                <button
-                  key={x.rank}
-                  type='button'
-                  onClick={() => handleClickItem(x)}
-                  className='w-full rounded-2xl border border-slate-100 bg-white px-4 py-4 text-center shadow-sm hover:border-sky-200 hover:bg-sky-50/30'
-                  title='클릭 시 지도 이동 + 상세보기'
-                >
-                  <div className='text-[15px] font-semibold text-slate-800'>
-                    {x.rank}위 {x.tradeName ?? '단지'} {formatPrice(x.maxPrice)}
-                  </div>
-                </button>
-              ))
+              topPrice
+                .slice(0, 10)
+                .map((x) => (
+                  <RowItemButton
+                    key={x.rank}
+                    onClick={() => handleClickItem(x)}
+                    title='클릭 시 지도 이동 + 상세보기'
+                    left={`${x.rank}위`}
+                    center={x.tradeName ?? '단지'}
+                    right={formatPrice(x.maxPrice)}
+                  />
+                ))
             )}
           </div>
         )}
@@ -224,18 +259,14 @@ export default function TopChartSidebar({ onBack }) {
                 </div>
               ) : (
                 volumeFiltered.map((x, idx) => (
-                  <button
+                  <RowItemButton
                     key={`${x.regionId}-${x.parcelId}-${idx}`}
-                    type='button'
                     onClick={() => handleClickItem(x)}
-                    className='w-full rounded-2xl border border-slate-100 bg-white px-4 py-4 text-center shadow-sm hover:border-sky-200 hover:bg-sky-50/30'
                     title='클릭 시 지도 이동 + 상세보기'
-                  >
-                    <div className='text-[15px] font-semibold text-slate-800'>
-                      {idx + 1}위 {x.tradeName ?? '단지'}{' '}
-                      {Number(x.dealCount ?? 0).toLocaleString()}건
-                    </div>
-                  </button>
+                    left={`${idx + 1}위`}
+                    center={x.tradeName ?? '단지'}
+                    right={`${Number(x.dealCount ?? 0).toLocaleString()}건`}
+                  />
                 ))
               )}
             </div>
