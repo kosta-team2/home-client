@@ -180,19 +180,11 @@ export default function TopChartSidebar({ onBack }) {
                   key={x.rank}
                   type='button'
                   onClick={() => handleClickItem(x)}
-                  className='w-full rounded-2xl border border-slate-100 bg-white px-3 py-3 text-left shadow-sm hover:border-sky-200 hover:bg-sky-50/30'
+                  className='w-full rounded-2xl border border-slate-100 bg-white px-4 py-4 text-center shadow-sm hover:border-sky-200 hover:bg-sky-50/30'
                   title='클릭 시 지도 이동 + 상세보기'
                 >
-                  <div className='flex items-center justify-between'>
-                    <div className='text-[13px] font-semibold text-slate-800'>
-                      {x.rank}위 · {x.tradeName ?? '단지'}
-                    </div>
-                    <div className='text-[12px] font-semibold text-slate-800'>
-                      {formatPrice(x.maxPrice)}
-                    </div>
-                  </div>
-                  <div className='mt-1 text-[11px] text-slate-500'>
-                    parcelId: {x.parcelId}
+                  <div className='text-[15px] font-semibold text-slate-800'>
+                    {x.rank}위 {x.tradeName ?? '단지'} {formatPrice(x.maxPrice)}
                   </div>
                 </button>
               ))
@@ -236,19 +228,12 @@ export default function TopChartSidebar({ onBack }) {
                     key={`${x.regionId}-${x.parcelId}-${idx}`}
                     type='button'
                     onClick={() => handleClickItem(x)}
-                    className='w-full rounded-2xl border border-slate-100 bg-white px-3 py-3 text-left shadow-sm hover:border-sky-200 hover:bg-sky-50/30'
+                    className='w-full rounded-2xl border border-slate-100 bg-white px-4 py-4 text-center shadow-sm hover:border-sky-200 hover:bg-sky-50/30'
                     title='클릭 시 지도 이동 + 상세보기'
                   >
-                    <div className='flex items-center justify-between'>
-                      <div className='text-[13px] font-semibold text-slate-800'>
-                        {idx + 1}위 · {x.tradeName ?? '단지'}
-                      </div>
-                      <div className='text-[12px] font-semibold text-slate-800'>
-                        {Number(x.dealCount ?? 0).toLocaleString()}건
-                      </div>
-                    </div>
-                    <div className='mt-1 text-[11px] text-slate-500'>
-                      {x.regionName} · parcelId: {x.parcelId}
+                    <div className='text-[15px] font-semibold text-slate-800'>
+                      {idx + 1}위 {x.tradeName ?? '단지'}{' '}
+                      {Number(x.dealCount ?? 0).toLocaleString()}건
                     </div>
                   </button>
                 ))
