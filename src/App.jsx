@@ -33,14 +33,14 @@ export default function App() {
   const [openFilterKey, setOpenFilterKey] = useState(null);
 
   const resolveEndpoint = (level) => {
-    if (level < 4) return 'api/v1/map/complexes';
+    if (level <= 4) return 'api/v1/map/complexes';
     return 'api/v1/map/regions';
   };
 
   const resolveRegionKeyForApi = (level) => {
     if (level >= 10) return 'si-do';
     if (level >= 7) return 'si-gun-gu';
-    if (level >= 4) return 'eup-myeon-dong';
+    if (level > 4) return 'eup-myeon-dong';
     return 'complex';
   };
 
