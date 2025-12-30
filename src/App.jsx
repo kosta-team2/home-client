@@ -33,7 +33,7 @@ export default function App() {
   const [openFilterKey, setOpenFilterKey] = useState(null);
 
   const resolveEndpoint = (level) => {
-    if (level <= 4) return 'api/v1/map/complexes';
+    if (level < 4) return 'api/v1/map/complexes';
     return 'api/v1/map/regions';
   };
 
